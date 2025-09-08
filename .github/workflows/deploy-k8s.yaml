@@ -1,0 +1,29 @@
+name: Deploy Kubernetes Manifests to DOKS
+
+on:
+  workflow_dispatch:
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up kubectl
+        uses: azure/setup-kubectl@v3
+        with:
+          version: 'latest'
+
+      - name: Install doctl
+        uses: digitalocean/action-doctl@v2
+        with:
+          token: ${{ secrets.DIGITALOCEAN_ACCESS_TOKEN }}
+
+      - name: Get kubeconfig for DOKS
+        run: |
+          doctl kubernetes cluster kubeconfig save alaris-takehome-doks
+
+      - name: Deploy manifests to DOKS
+        run: |
+          kubectl apply -f manifests/
