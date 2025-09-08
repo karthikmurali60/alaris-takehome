@@ -8,8 +8,10 @@ jobs:
     runs-on: ubuntu-latest
 
     env:
-      AWS_ACCESS_KEY_ID: ${{ secrets.DO_ACCESS_KEY_ID }}
-      AWS_SECRET_ACCESS_KEY: ${{ secrets.DO_SECRET_ACCESS_KEY }}
+      AWS_ACCESS_KEY_ID: ${{ secrets.TF_STATE_ACCESS_KEY_ID }}
+      AWS_SECRET_ACCESS_KEY: ${{ secrets.TF_STATE_SECRET_ACCESS_KEY }}
+      SPACES_ACCESS_KEY_ID: ${{ secrets.SPACES_ACCESS_KEY_ID }}
+      SPACES_SECRET_ACCESS_KEY: ${{ secrets.SPACES_SECRET_ACCESS_KEY }}
 
     steps:
       - name: Checkout repo
@@ -20,10 +22,7 @@ jobs:
 
       - name: Terraform Init
         working-directory: infra/do-spaces
-        run: |
-            terraform init \
-                -backend-config="access_key=${{ secrets.DO_ACCESS_KEY_ID }}" \
-                -backend-config="secret_key=${{ secrets.DO_SECRET_ACCESS_KEY }}"
+        run: terraform init
 
       - name: Terraform Plan
         working-directory: infra/do-spaces
@@ -47,8 +46,10 @@ jobs:
       name: task
 
     env:
-      AWS_ACCESS_KEY_ID: ${{ secrets.DO_ACCESS_KEY_ID }}
-      AWS_SECRET_ACCESS_KEY: ${{ secrets.DO_SECRET_ACCESS_KEY }}
+      AWS_ACCESS_KEY_ID: ${{ secrets.TF_STATE_ACCESS_KEY_ID }}
+      AWS_SECRET_ACCESS_KEY: ${{ secrets.TF_STATE_SECRET_ACCESS_KEY }}
+      SPACES_ACCESS_KEY_ID: ${{ secrets.SPACES_ACCESS_KEY_ID }}
+      SPACES_SECRET_ACCESS_KEY: ${{ secrets.SPACES_SECRET_ACCESS_KEY }}
 
     steps:
       - name: Checkout repo
@@ -65,10 +66,7 @@ jobs:
 
       - name: Terraform Init
         working-directory: infra/do-spaces
-        run: |
-            terraform init \
-                -backend-config="access_key=${{ secrets.DO_ACCESS_KEY_ID }}" \
-                -backend-config="secret_key=${{ secrets.DO_SECRET_ACCESS_KEY }}"
+        run: terraform init
 
       - name: Terraform Apply
         working-directory: infra/do-spaces
