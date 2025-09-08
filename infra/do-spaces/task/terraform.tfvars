@@ -1,0 +1,2 @@
+space_name=alaris-takehome-karthikmuraliprasad
+region=nyc1

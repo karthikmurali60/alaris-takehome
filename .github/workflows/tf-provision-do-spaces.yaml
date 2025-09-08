@@ -1,0 +1,90 @@
+name: Provision DigitalOcean Spaces
+
+on:
+  workflow_dispatch:
+
+jobs:
+  terraform-plan:
+    runs-on: ubuntu-latest
+
+    env:
+      TF_LOG: DEBUG
+
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v4
+
+      - name: Set up Terraform
+        uses: hashicorp/setup-terraform@v3
+
+      - name: Terraform Init
+        working-directory: infra/do-spaces
+        run: |
+            terraform init \
+                -backend-config="bucket=alaris-takehome-tf-state" \
+                -backend-config="key=task/terraform.tfstate" \
+                -backend-config="region=nyc3" \
+                -backend-config="endpoint=https://nyc3.digitaloceanspaces.com" \
+                -backend-config="access_key=${{ secrets.DO_ACCESS_KEY_ID }}" \
+                -backend-config="secret_key=${{ secrets.DO_SECRET_ACCESS_KEY }}" \
+                -backend-config="skip_credentials_validation=true" \
+                -backend-config="skip_metadata_api_check=true" \
+                -backend-config="force_path_style=true"
+
+      - name: Terraform Plan
+        working-directory: infra/do-spaces
+        env:
+          DIGITALOCEAN_ACCESS_TOKEN: ${{ secrets.DIGITALOCEAN_ACCESS_TOKEN }}
+        run: |
+          terraform plan \
+            -var="do_token=${DIGITALOCEAN_ACCESS_TOKEN}"
+
+      - name: Upload Plan Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: tfplan
+          path: infra/do-spaces/.terraform
+
+  terraform-apply:
+    needs: terraform-plan
+    runs-on: ubuntu-latest
+    environment:
+      name: task
+
+    env:
+      TF_LOG: DEBUG
+
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v4
+
+      - name: Set up Terraform
+        uses: hashicorp/setup-terraform@v3
+
+      - name: Download Plan Artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: tfplan
+          path: infra/do-spaces/.terraform
+
+      - name: Terraform Init
+        working-directory: infra/do-spaces
+        run: |
+            terraform init \
+                -backend-config="bucket=alaris-takehome-tf-state" \
+                -backend-config="key=task/terraform.tfstate" \
+                -backend-config="region=nyc3" \
+                -backend-config="endpoint=https://nyc3.digitaloceanspaces.com" \
+                -backend-config="access_key=${{ secrets.DO_ACCESS_KEY_ID }}" \
+                -backend-config="secret_key=${{ secrets.DO_SECRET_ACCESS_KEY }}" \
+                -backend-config="skip_credentials_validation=true" \
+                -backend-config="skip_metadata_api_check=true" \
+                -backend-config="force_path_style=true"
+
+      - name: Terraform Apply
+        working-directory: infra/do-spaces
+        env:
+          DIGITALOCEAN_ACCESS_TOKEN: ${{ secrets.DIGITALOCEAN_ACCESS_TOKEN }}
+        run: |
+          terraform apply -auto-approve \
+            -var="do_token=${DIGITALOCEAN_ACCESS_TOKEN}"
