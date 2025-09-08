@@ -8,10 +8,8 @@ jobs:
     runs-on: ubuntu-latest
 
     env:
-      TF_LOG: DEBUG
-      # Credentials for DigitalOcean Spaces to store Terraform state
-      SPACES_ACCESS_KEY_ID: ${{ secrets.DO_ACCESS_KEY_ID }}
-      SPACES_SECRET_ACCESS_KEY: ${{ secrets.DO_SECRET_ACCESS_KEY }}
+      AWS_ACCESS_KEY_ID: ${{ secrets.DO_ACCESS_KEY_ID }}
+      AWS_SECRET_ACCESS_KEY: ${{ secrets.DO_SECRET_ACCESS_KEY }}
 
     steps:
       - name: Checkout repo
@@ -49,9 +47,8 @@ jobs:
       name: task
 
     env:
-      TF_LOG: DEBUG
-      SPACES_ACCESS_KEY_ID: ${{ secrets.DO_ACCESS_KEY_ID }}
-      SPACES_SECRET_ACCESS_KEY: ${{ secrets.DO_SECRET_ACCESS_KEY }}
+      AWS_ACCESS_KEY_ID: ${{ secrets.DO_ACCESS_KEY_ID }}
+      AWS_SECRET_ACCESS_KEY: ${{ secrets.DO_SECRET_ACCESS_KEY }}
 
     steps:
       - name: Checkout repo

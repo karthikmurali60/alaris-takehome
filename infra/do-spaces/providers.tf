@@ -22,6 +22,7 @@ terraform {
     skip_region_validation      = true
     skip_s3_checksum            = true
     region                      = "us-east-1"
+    use_lockfile                = true
   }
 }
 

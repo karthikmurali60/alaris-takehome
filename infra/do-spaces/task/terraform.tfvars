@@ -10,7 +10,7 @@ tenants = {
     storage_size = 10
   }
 }
-project_name        = "alaris-takehome-task"
+project_name        = "alaris-takehome-assignment"
 project_description = "Project for Alaris Takehome Task"
 project_purpose     = "Web Application"
 project_environment = "Development"
