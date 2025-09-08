@@ -24,15 +24,8 @@ jobs:
         working-directory: infra/do-spaces
         run: |
             terraform init \
-                -backend-config="bucket=alaris-takehome-task-tfstate" \
-                -backend-config="key=task/terraform.tfstate" \
-                -backend-config="region=nyc3" \
-                -backend-config="endpoint=https://nyc3.digitaloceanspaces.com" \
                 -backend-config="access_key=${{ secrets.DO_ACCESS_KEY_ID }}" \
-                -backend-config="secret_key=${{ secrets.DO_SECRET_ACCESS_KEY }}" \
-                -backend-config="skip_credentials_validation=true" \
-                -backend-config="skip_metadata_api_check=true" \
-                -backend-config="force_path_style=true"
+                -backend-config="secret_key=${{ secrets.DO_SECRET_ACCESS_KEY }}"
 
       - name: Terraform Plan
         working-directory: infra/do-spaces
@@ -77,15 +70,8 @@ jobs:
         working-directory: infra/do-spaces
         run: |
             terraform init \
-                -backend-config="bucket=alaris-takehome-task-tfstate" \
-                -backend-config="key=task/terraform.tfstate" \
-                -backend-config="region=nyc3" \
-                -backend-config="endpoint=https://nyc3.digitaloceanspaces.com" \
                 -backend-config="access_key=${{ secrets.DO_ACCESS_KEY_ID }}" \
-                -backend-config="secret_key=${{ secrets.DO_SECRET_ACCESS_KEY }}" \
-                -backend-config="skip_credentials_validation=true" \
-                -backend-config="skip_metadata_api_check=true" \
-                -backend-config="force_path_style=true"
+                -backend-config="secret_key=${{ secrets.DO_SECRET_ACCESS_KEY }}"
 
       - name: Terraform Apply
         working-directory: infra/do-spaces
