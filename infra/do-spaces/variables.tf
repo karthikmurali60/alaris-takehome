@@ -37,21 +37,6 @@ variable "project_name" {
   description = "Name of the DigitalOcean Project"
 }
 
-variable "project_description" {
-  type        = string
-  description = "Description of the DigitalOcean Project"
-}
-
-variable "project_purpose" {
-  type        = string
-  description = "Purpose of the DigitalOcean Project"
-}
-
-variable "project_environment" {
-  type        = string
-  description = "Environment of the DigitalOcean Project"
-}
-
 variable "cluster_name" {
   type        = string
   description = "Name of the Kubernetes Cluster"

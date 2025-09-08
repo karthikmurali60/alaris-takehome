@@ -1,4 +1,4 @@
-space_name  = "alaris-takehome-karthikmuraliprasad"
+space_name  = "alaris-takehome-karthik"
 region      = "nyc3"
 tenants = {
   tenant-a = {
@@ -10,10 +10,7 @@ tenants = {
     storage_size = 10
   }
 }
-project_name        = "alaris-takehome-assignment"
-project_description = "Project for Alaris Takehome Task"
-project_purpose     = "Web Application"
-project_environment = "Development"
+project_name        = "alaris-takehome-task"
 cluster_name        = "alaris-takehome-cluster"
 cluster_version     = "latest"
 node_size           = "s-1vcpu-2gb"

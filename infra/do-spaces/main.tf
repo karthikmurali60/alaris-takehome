@@ -1,8 +1,5 @@
-resource "digitalocean_project" "alaris_project" {
-  name        = var.project_name
-  description = var.project_description
-  purpose     = var.project_purpose
-  environment = var.project_environment
+data "digitalocean_project" "alaris_project" {
+  name = var.project_name
 }
 
 resource "digitalocean_kubernetes_cluster" "alaris_cluster" {
@@ -47,7 +44,7 @@ resource "digitalocean_volume" "tenant_volumes" {
 }
 
 resource "digitalocean_project_resources" "alaris_project_resources" {
-  project = digitalocean_project.alaris_project.id
+  project = data.digitalocean_project.alaris_project.id
 
   resources = concat(
     [for volume in digitalocean_volume.tenant_volumes : volume.urn],
