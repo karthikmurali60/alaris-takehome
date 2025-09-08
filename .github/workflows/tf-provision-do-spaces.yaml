@@ -37,7 +37,7 @@ jobs:
           DIGITALOCEAN_ACCESS_TOKEN: ${{ secrets.DIGITALOCEAN_ACCESS_TOKEN }}
         run: |
           terraform plan \
-            -var="do_token=${DIGITALOCEAN_ACCESS_TOKEN}"
+            -var="do_token=${DIGITALOCEAN_ACCESS_TOKEN}" \
             -var-file="task/terraform.tfvars"
 
       - name: Upload Plan Artifact
@@ -88,5 +88,5 @@ jobs:
           DIGITALOCEAN_ACCESS_TOKEN: ${{ secrets.DIGITALOCEAN_ACCESS_TOKEN }}
         run: |
           terraform apply -auto-approve \
-            -var="do_token=${DIGITALOCEAN_ACCESS_TOKEN}"
+            -var="do_token=${DIGITALOCEAN_ACCESS_TOKEN}" \
             -var-file="task/terraform.tfvars"
