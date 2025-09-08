@@ -1,0 +1,27 @@
+# Local .terraform directories
+**/.terraform/*
+
+# .tfstate files and backup
+**/*.tfstate
+**/*.tfstate.*
+
+# Crash logs
+crash.log
+
+# Exclude CLI configuration files
+.terraformrc
+terraform.rc
+
+# Exclude plan output
+*.tfplan
+
+# Exclude sensitive .tfvars files (if you create them for secrets, etc)
+*.tfvars
+!example.tfvars      # (Un-ignore sample/template files for docs)
+
+# Ignore logs
+*.log
+
+# Ignore any artifact files
+tfplan
+*.out
