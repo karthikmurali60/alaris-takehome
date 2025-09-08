@@ -1,0 +1,15 @@
+# manifests/namespaces.yaml
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: tenant-a
+---
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: tenant-b
+---
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: ops
