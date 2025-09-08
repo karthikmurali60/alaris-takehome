@@ -26,4 +26,4 @@ jobs:
 
       - name: Deploy manifests to DOKS
         run: |
-          kubectl apply -f manifests/
+          kubectl apply -R -f manifests/
