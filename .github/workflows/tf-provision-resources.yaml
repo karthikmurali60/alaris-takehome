@@ -1,4 +1,4 @@
-name: Provision DigitalOcean Spaces
+name: Provision DigitalOcean Resources
 
 on:
   workflow_dispatch:
