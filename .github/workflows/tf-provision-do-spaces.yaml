@@ -38,6 +38,7 @@ jobs:
         run: |
           terraform plan \
             -var="do_token=${DIGITALOCEAN_ACCESS_TOKEN}"
+            -var-file="task/terraform.tfvars"
 
       - name: Upload Plan Artifact
         uses: actions/upload-artifact@v4
@@ -88,3 +89,4 @@ jobs:
         run: |
           terraform apply -auto-approve \
             -var="do_token=${DIGITALOCEAN_ACCESS_TOKEN}"
+            -var-file="task/terraform.tfvars"
