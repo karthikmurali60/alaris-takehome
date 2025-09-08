@@ -24,7 +24,7 @@ jobs:
         working-directory: infra/do-spaces
         run: |
             terraform init \
-                -backend-config="bucket=alaris-takehome-tf-state" \
+                -backend-config="bucket=alaris-takehome-tfstate" \
                 -backend-config="key=task/terraform.tfstate" \
                 -backend-config="region=nyc3" \
                 -backend-config="endpoint=https://nyc3.digitaloceanspaces.com" \
@@ -77,7 +77,7 @@ jobs:
         working-directory: infra/do-spaces
         run: |
             terraform init \
-                -backend-config="bucket=alaris-takehome-tf-state" \
+                -backend-config="bucket=alaris-takehome-tfstate" \
                 -backend-config="key=task/terraform.tfstate" \
                 -backend-config="region=nyc3" \
                 -backend-config="endpoint=https://nyc3.digitaloceanspaces.com" \
