@@ -7,7 +7,7 @@ resource "digitalocean_spaces_bucket" "backups" {
 
 resource "digitalocean_spaces_bucket_cors_configuration" "example" {
   bucket = digitalocean_spaces_bucket.backups.name
-  region = "nyc1"
+  region = "nyc3"
 
   cors_rule {
     allowed_methods = ["GET", "PUT", "POST", "HEAD", "DELETE"]

@@ -11,6 +11,6 @@ variable "space_name" {
 
 variable "region" {
   type        = string
-  default     = "nyc1"
+  default     = "nyc3"
   description = "Spaces region (e.g. nyc3, sgp1)"
 }
