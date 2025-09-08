@@ -1,2 +1,2 @@
-space_name=alaris-takehome-karthikmuraliprasad
-region=nyc1
+space_name  = "alaris-takehome-karthikmuraliprasad"
+region      = "nyc1"
