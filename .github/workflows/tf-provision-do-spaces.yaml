@@ -36,15 +36,15 @@ jobs:
         env:
           DIGITALOCEAN_ACCESS_TOKEN: ${{ secrets.DIGITALOCEAN_ACCESS_TOKEN }}
         run: |
-          terraform plan \
+          terraform plan -out=tfplan \
             -var="do_token=${DIGITALOCEAN_ACCESS_TOKEN}" \
             -var-file="task/terraform.tfvars"
 
       - name: Upload Plan Artifact
         uses: actions/upload-artifact@v4
         with:
-          name: tfplan
-          path: infra/do-spaces/.terraform
+          name: tfplan-artifact
+          path: infra/do-spaces/tfplan
 
   terraform-apply:
     needs: terraform-plan
@@ -65,8 +65,8 @@ jobs:
       - name: Download Plan Artifact
         uses: actions/download-artifact@v4
         with:
-          name: tfplan
-          path: infra/do-spaces/.terraform
+          name: tfplan-artifact
+          path: infra/do-spaces/
 
       - name: Terraform Init
         working-directory: infra/do-spaces
@@ -87,6 +87,4 @@ jobs:
         env:
           DIGITALOCEAN_ACCESS_TOKEN: ${{ secrets.DIGITALOCEAN_ACCESS_TOKEN }}
         run: |
-          terraform apply -auto-approve \
-            -var="do_token=${DIGITALOCEAN_ACCESS_TOKEN}" \
-            -var-file="task/terraform.tfvars"
+          terraform apply -auto-approve tfplan
