@@ -17,7 +17,7 @@ jobs:
           token: ${{ secrets.DIGITALOCEAN_ACCESS_TOKEN }}
       
       - name: Get kubeconfig
-        run: doctl kubernetes cluster kubeconfig save alaris-takehome-doks
+        run: doctl kubernetes cluster kubeconfig save ${{ vars.K8S_CLUSTER_NAME }}
 
       - name: Install Helmfile
         run: |
