@@ -1,0 +1,39 @@
+name: Install CloudNativePG Operator Clusterwide
+
+on:
+  workflow_dispatch:
+
+jobs:
+  install-operator:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Install doctl
+        uses: digitalocean/action-doctl@v2
+        with:
+          token: ${{ secrets.DIGITALOCEAN_ACCESS_TOKEN }}
+      
+      - name: Get kubeconfig
+        run: doctl kubernetes cluster kubeconfig save alaris-takehome-doks
+
+      - name: Install Helm
+        uses: azure/setup-helm@v3
+        with:
+          version: 'latest'
+
+      - name: Add CloudNativePG Helm repo
+        run: helm repo add cnpg https://cloudnative-pg.github.io/charts/
+
+      - name: Update Helm repos
+        run: helm repo update
+
+      - name: Install CloudNativePG operator clusterwide
+        run: |
+          helm install cloudnative-pg-operator cnpg/cloudnative-pg \
+            --namespace cnpg-system \
+            --create-namespace \
+            --set installCRDs=true \
+            --set clusterWide=true
