@@ -19,21 +19,12 @@ jobs:
       - name: Get kubeconfig
         run: doctl kubernetes cluster kubeconfig save alaris-takehome-doks
 
-      - name: Install Helm
-        uses: azure/setup-helm@v3
-        with:
-          version: 'latest'
-
-      - name: Add CloudNativePG Helm repo
-        run: helm repo add cnpg https://cloudnative-pg.github.io/charts/
-
-      - name: Update Helm repos
-        run: helm repo update
-
-      - name: Install CloudNativePG operator clusterwide
+      - name: Install Helmfile
         run: |
-          helm install cloudnative-pg-operator cnpg/cloudnative-pg \
-            --namespace cnpg-system \
-            --create-namespace \
-            --set installCRDs=true \
-            --set clusterWide=true
+          wget https://github.com/helmfile/helmfile/releases/download/v0.162.0/helmfile_0.162.0_linux_amd64.tar.gz
+          tar -zxvf helmfile_0.162.0_linux_amd64.tar.gz
+          sudo mv helmfile /usr/local/bin/helmfile
+
+      - name: Deploy CNPG Operator with Helmfile
+        run: |
+          helmfile -f charts/helmfile.yaml sync
