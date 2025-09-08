@@ -1,0 +1,42 @@
+name: Provision DigitalOcean Spaces
+
+on:
+  workflow_dispatch:
+
+jobs:
+  terraform:
+    runs-on: ubuntu-latest
+
+    env:
+      TF_LOG: DEBUG
+
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v4
+
+      - name: Set up Terraform
+        uses: hashicorp/setup-terraform@v3
+
+      - name: Terraform Init
+        working-directory: infra/do-spaces
+        run: terraform init
+
+      - name: Terraform Plan
+        working-directory: infra/do-spaces
+        env:
+          DIGITALOCEAN_ACCESS_TOKEN: ${{ secrets.DIGITALOCEAN_ACCESS_TOKEN }}
+        run: |
+          terraform plan \
+            -var="do_token=${DIGITALOCEAN_ACCESS_TOKEN}" \
+            -var="space_name=${{ vars.DO_SPACES_BUCKET }}" \
+            -var="region=${{ vars.DO_SPACES_REGION }}"
+
+      - name: Terraform Apply
+        working-directory: infra/do-spaces
+        env:
+          DIGITALOCEAN_ACCESS_TOKEN: ${{ secrets.DIGITALOCEAN_ACCESS_TOKEN }}
+        run: |
+          terraform apply -auto-approve \
+            -var="do_token=${DIGITALOCEAN_ACCESS_TOKEN}" \
+            -var="space_name=${{ vars.DO_SPACES_BUCKET }}" \
+            -var="region=${{ vars.DO_SPACES_REGION }}"
