@@ -20,7 +20,7 @@ echo "🚀 Bootstrapping tenant: $TENANT_NAME"
 export TENANT_NAME="$TENANT_NAME"
 export DO_SPACES_ACCESS_KEY=$(echo -n "$DO_SPACES_ACCESS_KEY" | base64)
 export DO_SPACES_SECRET_KEY=$(echo -n "$DO_SPACES_SECRET_KEY" | base64)
-export DB_USERNAME=$(echo -n "pg-${TENANT_NAME}-user" | base64)
+export DB_USERNAME=$(echo -n "postgres" | base64)
 export DB_PASSWORD=$(echo -n "$DB_PASSWORD" | base64)
 export DO_SPACES_BUCKET="$DO_SPACES_BUCKET"
 export DO_SPACES_REGION="$DO_SPACES_REGION"
