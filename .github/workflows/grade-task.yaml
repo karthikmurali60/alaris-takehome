@@ -72,47 +72,6 @@ jobs:
           fi
         done
         
-    # - name: Verify ops namespace exists
-    #   run: |
-    #     echo "Checking if ops namespace exists..."
-    #     if ! kubectl get namespace ops &>/dev/null; then
-    #       echo "Creating ops namespace..."
-    #       kubectl create namespace ops
-          
-    #       # Create service account for ops namespace
-    #       kubectl create serviceaccount ops-reader -n ops
-          
-    #       # Create cluster role for read-only access to tenant databases
-    #       kubectl apply -f - <<EOF
-    #     apiVersion: rbac.authorization.k8s.io/v1
-    #     kind: ClusterRole
-    #     metadata:
-    #       name: tenant-db-reader
-    #     rules:
-    #     - apiGroups: [""]
-    #       resources: ["services", "pods"]
-    #       verbs: ["get", "list"]
-    #     - apiGroups: [""]
-    #       resources: ["pods/exec"]
-    #       verbs: ["create"]
-    #     ---
-    #     apiVersion: rbac.authorization.k8s.io/v1
-    #     kind: ClusterRoleBinding
-    #     metadata:
-    #       name: ops-tenant-db-reader
-    #     roleRef:
-    #       apiGroup: rbac.authorization.k8s.io
-    #       kind: ClusterRole
-    #       name: tenant-db-reader
-    #     subjects:
-    #     - kind: ServiceAccount
-    #       name: ops-reader
-    #       namespace: ops
-    #     EOF
-    #     else
-    #       echo "Ops namespace already exists."
-    #     fi
-        
     - name: Wait for services to be ready
       run: |
         echo "Waiting for LoadBalancer services to get external IPs..."
