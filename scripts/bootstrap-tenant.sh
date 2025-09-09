@@ -10,13 +10,8 @@ if [ -z "$TENANT_NAME" ]; then
     exit 1
 fi
 
-# Get database password from GitHub secrets
-PASSWORD_VAR="POSTGRES_$(echo ${TENANT_NAME^^} | tr '-' '_')_PASSWORD"
-DB_PASSWORD="${!PASSWORD_VAR}"
-
 if [ -z "$DB_PASSWORD" ]; then
-    echo "Error: Database password not found"
-    echo "Required environment variable: $PASSWORD_VAR"
+    echo "Error: DB_PASSWORD environment variable is not set."
     exit 1
 fi
 
