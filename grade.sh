@@ -16,7 +16,6 @@ TOTAL_TESTS=8
 
 # Required environment variables
 REQUIRED_VARS=(
-    "KUBECONFIG"
     "DO_SPACES_REGION" 
     "DO_SPACES_ENDPOINT"
     "DO_SPACES_BUCKET"
