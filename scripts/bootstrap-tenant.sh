@@ -59,10 +59,10 @@ process_template() {
 echo "📝 Processing templates..."
 
 echo "🏠 Creating namespace..."
-process_template "manifests/namespace.yaml"
+process_template "namespace.yaml"
 
 echo "🔐 Creating secrets..."
-process_template "manifests/secrets.yaml"
+process_template "secrets.yaml"
 
 # echo "🗄️ Creating PostgreSQL cluster..."
 # process_template "manifests/database.yaml"
