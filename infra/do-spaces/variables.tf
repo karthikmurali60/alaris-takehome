@@ -65,5 +65,9 @@ variable "node_count" {
 variable "acl" {
   type        = string
   description = "Access control list for the Spaces bucket"
-  default     = "private"
+}
+
+variable "subscription_tier_slug" {
+  type        = string
+  description = "Subscription tier for the Container Registry"
 }

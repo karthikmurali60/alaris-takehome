@@ -43,12 +43,23 @@ resource "digitalocean_volume" "tenant_volumes" {
   description             = "PostgreSQL storage for ${each.value.name}"
 }
 
+resource "digitalocean_container_registry" "main" {
+  name                   = "${data.digitalocean_project.alaris_project.name}-registry"
+  subscription_tier_slug = var.subscription_tier_slug
+  region                 = var.region
+}
+
+resource "digitalocean_container_registry_docker_credentials" "main" {
+  registry_name = digitalocean_container_registry.main.name
+}
+
 resource "digitalocean_project_resources" "alaris_project_resources" {
   project = data.digitalocean_project.alaris_project.id
 
   resources = concat(
     [for volume in digitalocean_volume.tenant_volumes : volume.urn],
     [digitalocean_spaces_bucket.backups.urn],
-    [digitalocean_kubernetes_cluster.alaris_cluster.urn]
+    [digitalocean_kubernetes_cluster.alaris_cluster.urn],
+    [digitalocean_container_registry.main.urn]
   )
 }
