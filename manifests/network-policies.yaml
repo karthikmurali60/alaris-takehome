@@ -134,6 +134,25 @@ spec:
 apiVersion: networking.k8s.io/v1
 kind: NetworkPolicy
 metadata:
+  name: "{{TENANT_NAME}}-allow-spaces-backup"
+  namespace: {{TENANT_NAME}}
+spec:
+  podSelector:
+    matchLabels:
+      cnpg.io/cluster: pg-{{TENANT_NAME}}
+  policyTypes:
+  - Egress
+  egress:
+  - to:
+    - ipBlock:
+        cidr: 0.0.0.0/0
+    ports:
+    - protocol: TCP
+      port: 443
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
   name: "{{TENANT_NAME}}-allow-intra-app"
   namespace: {{TENANT_NAME}}
 spec:

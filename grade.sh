@@ -416,7 +416,7 @@ test_dr_drill() {
     # 1. Create sample table and insert row
     print_status "DEBUG" "Creating table and inserting test row..."
     kubectl exec -n ${NAMESPACE} deployment/${APP_POD_DEPL} -- \
-      env PGPASSWORD="$app_password" psql -h ${CLUSTER}-rw -U postgres -d app -c "
+      env PGPASSWORD="$app_password" psql -h ${CLUSTER}-rw -U "$app_user" -d app -c "
 CREATE TABLE IF NOT EXISTS ${DR_TABLE} (
   id SERIAL PRIMARY KEY, created_at TIMESTAMP DEFAULT NOW()
 );
@@ -471,7 +471,7 @@ EOF
     print_status "DEBUG" "Verifying DR data in restored cluster..."
     local result
     result=$(kubectl exec -n ${NAMESPACE} deployment/${APP_POD_DEPL} -- \
-      env PGPASSWORD="$app_password" psql -h ${RESTORED_CLUSTER}-rw -U postgres -d app -t -c "SELECT count(*) FROM ${DR_TABLE};" 2>/dev/null | tr -d ' ')
+      env PGPASSWORD="$app_password" psql -h ${RESTORED_CLUSTER}-rw -U "$app_user" -d app -t -c "SELECT count(*) FROM ${DR_TABLE};" 2>/dev/null | tr -d ' ')
     if [ "$result" -ge 1 ]; then
         print_status "PASS" "DR drill successful: ${DR_TABLE} row restored"
         record_result "PASS"
