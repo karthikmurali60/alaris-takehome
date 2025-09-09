@@ -125,7 +125,7 @@ check_dependencies() {
 # Function to configure s3cmd for DigitalOcean Spaces
 configure_s3cmd() {
     print_status "INFO" "Configuring s3cmd for DigitalOcean Spaces..."
-    
+
     cat > ~/.s3cfg << EOF
 [default]
 access_key = ${DO_SPACES_ACCESS_KEY}
@@ -294,23 +294,34 @@ test_ops_readonly() {
 # Test g: Backups present in DO Spaces
 test_backups_present() {
     print_status "TEST" "Testing backup presence in DigitalOcean Spaces..."
-    
-    print_status "DEBUG" "Listing backups in DigitalOcean Spaces..."
-    # List backups for tenant-a
-    if safe_execute "Backup listing test" "s3cmd ls -r \"s3://${DO_SPACES_BUCKET}/backups/tenant-a/\"" && \
-       s3cmd ls -r "s3://${DO_SPACES_BUCKET}/backups/tenant-a/" 2>/dev/null | grep -E "\.(backup|wal|gz)" 2>/dev/null; then
+
+    print_status "DEBUG" "Listing backups recursively in DigitalOcean Spaces..."
+    local list_cmd="s3cmd ls -r \"s3://${DO_SPACES_BUCKET}/backups/tenant-a/\""
+    print_status "DEBUG" "Running: $list_cmd"
+    local list_output
+    if ! list_output=$(eval "$list_cmd" 2>&1); then
+        print_status "DEBUG" "s3cmd ls failed with output:"
+        echo "$list_output"
+    fi
+
+    print_status "DEBUG" "Parsing for backup files..."
+    print_status "DEBUG" "Grep command: grep -E \"\\.(backup|wal|gz)\""
+    local grep_output
+    grep_output=$(echo "$list_output" | grep -E "\.(backup|wal|gz)" 2>&1)
+    local grep_status=$?
+
+    if [ $grep_status -eq 0 ]; then
         print_status "PASS" "Backups found in DigitalOcean Spaces for tenant-a"
         record_result "PASS"
-        
-        # Show recent backups
+
         print_status "INFO" "Recent backups in tenant-a:"
-        s3cmd ls -r "s3://${DO_SPACES_BUCKET}/backups/tenant-a/" 2>/dev/null | tail -3 | while read line; do
+        echo "$grep_output" | tail -3 | while read -r line; do
             echo "    $line"
         done
     else
         print_status "FAIL" "No backups found in DigitalOcean Spaces for tenant-a"
-        print_status "DEBUG" "Bucket contents:"
-        s3cmd ls -r "s3://${DO_SPACES_BUCKET}/" 2>/dev/null | head -5 || echo "Could not list bucket contents"
+        print_status "DEBUG" "Full s3cmd ls output:"
+        echo "$list_output"
         record_result "FAIL"
     fi
 }
@@ -318,45 +329,60 @@ test_backups_present() {
 # Test h: Simplified Disaster recovery test
 test_disaster_recovery() {
     print_status "TEST" "Testing disaster recovery capabilities..."
-    
-    # Simplified DR test that doesn't actually destroy the cluster
+
     print_status "DEBUG" "Checking backup and cluster status for DR readiness..."
-    
     local dr_ready=true
-    
-    # Check if cluster is healthy
-    if ! safe_execute "Cluster health check" "kubectl get cluster pg-tenant-a -n tenant-a"; then
+
+    # 1. Cluster health check
+    print_status "DEBUG" "Executing: Cluster health check"
+    if safe_execute "Cluster health check" "kubectl get cluster pg-tenant-a -n tenant-a"; then
+        print_status "DEBUG" "Cluster is healthy"
+    else
         print_status "DEBUG" "Cluster health check failed"
         dr_ready=false
     fi
-    
-    # Check if backups exist
-    if ! safe_execute "Backup existence check" "s3cmd ls -r \"s3://${DO_SPACES_BUCKET}/backups/tenant-a/\""; then
+
+    # 2. Backup existence check
+    print_status "DEBUG" "Executing: Backup existence check"
+    local backup_list
+    if backup_list=$(s3cmd ls -r "s3://${DO_SPACES_BUCKET}/backups/tenant-a/" 2>&1); then
+        print_status "DEBUG" "Backup list:"
+        echo "$backup_list"
+    else
         print_status "DEBUG" "No backups found for DR"
         dr_ready=false
     fi
-    
-    # Check if we can create a manual backup (without waiting for completion)
-    local test_timestamp=$(date +%s)
-    print_status "DEBUG" "Testing manual backup creation capability..."
-    if safe_execute "Manual backup creation test" "kubectl apply -f - <<EOF
+
+    # 3. Manual backup creation test
+    local timestamp=$(date +%s)
+    local backup_name="dr-test-backup-${timestamp}"
+    print_status "DEBUG" "Testing manual backup creation capability (Backup: $backup_name)"
+    local apply_output
+    if apply_output=$(kubectl apply -f - <<EOF 2>&1
 apiVersion: postgresql.cnpg.io/v1
 kind: Backup
 metadata:
-  name: dr-test-backup-${test_timestamp}
+  name: ${backup_name}
   namespace: tenant-a
 spec:
   cluster:
     name: pg-tenant-a
-EOF"; then
-        print_status "DEBUG" "Manual backup creation successful"
-        # Cleanup the test backup
-        kubectl delete backup "dr-test-backup-${test_timestamp}" -n tenant-a &>/dev/null || true
+EOF
+); then
+        print_status "DEBUG" "Manual backup creation succeeded"
+        print_status "DEBUG" "kubectl apply output:"
+        echo "$apply_output"
+        # Cleanup
+        print_status "DEBUG" "Deleting test backup: $backup_name"
+        kubectl delete backup "$backup_name" -n tenant-a &>/dev/null || true
     else
         print_status "DEBUG" "Manual backup creation failed"
+        print_status "DEBUG" "kubectl apply error:"
+        echo "$apply_output"
         dr_ready=false
     fi
-    
+
+    # Final verdict
     if [ "$dr_ready" = true ]; then
         print_status "PASS" "Disaster recovery infrastructure is ready"
         record_result "PASS"
