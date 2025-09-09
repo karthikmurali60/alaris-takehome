@@ -5,10 +5,12 @@ on:
   workflow_dispatch:
     inputs:
       tenant_name:
-        description: 'Tenant name to test (e.g., tenant-a)'
-        required: false
-        default: 'tenant-a'
-        type: string
+        description: 'Tenant name'
+        required: true
+        type: choice
+        options:
+          - tenant-a
+          - tenant-b
       skip_dr_test:
         description: 'Skip disaster recovery test (faster execution)'
         required: false
@@ -50,28 +52,7 @@ jobs:
     - name: Get kubeconfig for DOKS
       run: |
         doctl kubernetes cluster kubeconfig save ${{ vars.K8S_CLUSTER_NAME }}
-
-    - name: Verify required secrets
-      run: |
-        echo "Checking required GitHub secrets..."
-        
-        # List of required secrets
-        REQUIRED_SECRETS=(
-          "DIGITALOCEAN_ACCESS_TOKEN"
-          "SPACES_ACCESS_KEY_ID"
-          "SPACES_SECRET_ACCESS_KEY"
-        )
-        
-        # Check if secrets are properly configured (without exposing values)
-        for secret in "${REQUIRED_SECRETS[@]}"; do
-          if [ -z "${!secret}" ]; then
-            echo "❌ Missing required secret: $secret"
-            exit 1
-          else
-            echo "✅ Secret $secret is configured"
-          fi
-        done
-        
+   
     - name: Wait for services to be ready
       run: |
         echo "Waiting for LoadBalancer services to get external IPs..."
