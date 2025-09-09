@@ -6,6 +6,10 @@ on:
       tenant_name:
         description: 'Tenant name'
         required: true
+        type: choice
+        options:
+          - tenant-a
+          - tenant-b
 
 jobs:
   build-push:
