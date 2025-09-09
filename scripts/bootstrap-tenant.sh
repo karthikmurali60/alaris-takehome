@@ -18,9 +18,10 @@ fi
 echo "🚀 Bootstrapping tenant: $TENANT_NAME"
 
 export TENANT_NAME="$TENANT_NAME"
-export DB_PASSWORD="$DB_PASSWORD"
 export DO_SPACES_ACCESS_KEY="$DO_SPACES_ACCESS_KEY"
 export DO_SPACES_SECRET_KEY="$DO_SPACES_SECRET_KEY"
+export DB_USERNAME=$(echo -n "pg-${TENANT_NAME}-user" | base64)
+export DB_PASSWORD=$(echo -n "$DB_PASSWORD" | base64)
 
 # Function to process template
 process_template() {
