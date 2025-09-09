@@ -34,12 +34,12 @@ spec:
         - name: DB_USER
           valueFrom:
             secretKeyRef:
-              name: pg-{{TENANT_NAME}}-credentials
+              name: pg-{{TENANT_NAME}}-app-secret
               key: username
         - name: DB_PASSWORD
           valueFrom:
             secretKeyRef:
-              name: pg-{{TENANT_NAME}}-credentials
+              name: pg-{{TENANT_NAME}}-app-secret
               key: password
         resources:
           requests:

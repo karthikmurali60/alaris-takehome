@@ -25,15 +25,17 @@ metadata:
   namespace: {{TENANT_NAME}}
 spec:
   instances: 1
+  superUserSecret:
+    name: pg-{{TENANT_NAME}}-superuser-secret
   storage:
     size: 1Gi
     storageClass: do-block-storage
   bootstrap:
     initdb:
       database: app
-      owner: postgres
+      owner: app
       secret:
-        name: pg-{{TENANT_NAME}}-credentials
+        name: pg-{{TENANT_NAME}}-app-secret
   postgresql:
     parameters:
       max_connections: "100"
