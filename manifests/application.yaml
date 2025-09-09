@@ -1,0 +1,59 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: "{{TENANT_NAME}}-app"
+  namespace: {{TENANT_NAME}}
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: "{{TENANT_NAME}}-app"
+  template:
+    metadata:
+      labels:
+        app: "{{TENANT_NAME}}-app"
+    spec:
+      containers:
+      - name: app
+        image: "registry.digitalocean.com/alaris-takehome-task-registry/{{TENANT_NAME}}/tenant-app:latest"
+        ports:
+        - containerPort: 8080
+        - containerPort: 9090
+        env:
+        - name: TENANT_NAME
+          value: "{{TENANT_NAME}}"
+        - name: DB_HOST
+          value: "pg-{{TENANT_NAME}}-rw"
+        - name: DB_PORT
+          value: "5432"
+        - name: DB_NAME
+          value: "app"
+        - name: DB_USER
+          valueFrom:
+            secretKeyRef:
+              name: pg-{{TENANT_NAME}}-credentials
+              key: username
+        - name: DB_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: pg-{{TENANT_NAME}}-credentials
+              key: password
+        resources:
+          requests:
+            memory: 128Mi
+            cpu: 100m
+          limits:
+            memory: 256Mi
+            cpu: 200m
+        livenessProbe:
+          httpGet:
+            path: /health
+            port: 8080
+          initialDelaySeconds: 30
+          periodSeconds: 10
+        readinessProbe:
+          httpGet:
+            path: /health
+            port: 8080
+          initialDelaySeconds: 5
+          periodSeconds: 5

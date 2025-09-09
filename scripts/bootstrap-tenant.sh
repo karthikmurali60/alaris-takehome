@@ -70,19 +70,19 @@ process_template "secrets.yaml"
 echo "🗄️ Creating PostgreSQL cluster..."
 process_template "database.yaml"
 
-# echo "🚀 Deploying application..."
-# process_template "manifests/application.yaml"
+echo "🚀 Deploying application..."
+process_template "application.yaml"
 
-# echo "🌐 Creating services..."
-# process_template "manifests/services.yaml"
+echo "🌐 Creating services..."
+process_template "services.yaml"
 
-# echo "🔒 Applying network policies..."
-# process_template "manifests/network-policies.yaml"
+echo "🔒 Applying network policies..."
+process_template "network-policies.yaml"
 
-# Wait for resources
-# echo "⏳ Waiting for resources to be ready..."
-# kubectl wait --for=condition=Ready cluster/pg-$TENANT_NAME -n $TENANT_NAME --timeout=300s
-# kubectl wait --for=condition=Available deployment/${TENANT_NAME}-app -n $TENANT_NAME --timeout=300s
+Wait for resources
+echo "⏳ Waiting for resources to be ready..."
+kubectl wait --for=condition=Ready cluster/pg-$TENANT_NAME -n $TENANT_NAME --timeout=300s
+kubectl wait --for=condition=Available deployment/${TENANT_NAME}-app -n $TENANT_NAME --timeout=300s
 
 # # Initialize database
 # echo "📊 Initializing database..."
@@ -96,61 +96,15 @@ process_template "database.yaml"
 # INSERT INTO tenant_info (tenant_name) VALUES ('$TENANT_NAME') ON CONFLICT DO NOTHING;
 # "
 
-# # Get external IP and show results
-# EXTERNAL_IP=$(kubectl get svc -n $TENANT_NAME ${TENANT_NAME}-public -o jsonpath='{.status.loadBalancer.ingress[0].ip}' 2>/dev/null || echo "pending")
+# Get external IP and show results
+EXTERNAL_IP=$(kubectl get svc -n $TENANT_NAME ${TENANT_NAME}-public -o jsonpath='{.status.loadBalancer.ingress[0].ip}' 2>/dev/null || echo "pending")
 
 echo ""
 echo "✅ Tenant $TENANT_NAME bootstrapped successfully!"
-# echo ""
-# echo "📋 Connection Information:"
-# echo "  External IP: $EXTERNAL_IP"
-# echo "  Public endpoint: http://$EXTERNAL_IP/public"
-# echo ""
-# echo "🧪 Test commands:"
-# echo "  curl http://$EXTERNAL_IP/public"
-# echo "  kubectl logs -n $TENANT_NAME deployment/${TENANT_NAME}-app"allow-spaces
-#   namespace: $TENANT_NAME
-# spec:
-#   podSelector:
-#     matchLabels:
-#       cnpg.io/cluster: pg-$TENANT_NAME
-#   policyTypes:
-#   - Egress
-#   egress:
-#   - to: []
-#     ports:
-#     - protocol: TCP
-#       port: 443
-# EOF
-
-# # 7. Wait for resources
-# echo "⏳ Waiting for resources to be ready..."
-# kubectl wait --for=condition=Ready cluster/pg-$TENANT_NAME -n $TENANT_NAME --timeout=300s
-# kubectl wait --for=condition=Available deployment/${TENANT_NAME}-app -n $TENANT_NAME --timeout=300s
-
-# # 8. Initialize database
-# echo "📊 Initializing database..."
-# sleep 30  # Wait for app to be fully ready
-# kubectl exec -n $TENANT_NAME deployment/${TENANT_NAME}-app -- psql -h pg-${TENANT_NAME}-rw -U postgres -d app -c "
-# CREATE TABLE IF NOT EXISTS tenant_info (
-#   id SERIAL PRIMARY KEY,
-#   tenant_name VARCHAR(50) NOT NULL,
-#   created_at TIMESTAMP DEFAULT NOW()
-# );
-# INSERT INTO tenant_info (tenant_name) VALUES ('$TENANT_NAME') ON CONFLICT DO NOTHING;
-# "
-
-# # 9. Get external IP and show results
-# EXTERNAL_IP=$(kubectl get svc -n $TENANT_NAME ${TENANT_NAME}-public -o jsonpath='{.status.loadBalancer.ingress[0].ip}' 2>/dev/null || echo "pending")
-
-# echo ""
-# echo "✅ Tenant $TENANT_NAME bootstrapped successfully!"
-# echo ""
-# echo "📋 Connection Information:"
-# echo "  External IP: $EXTERNAL_IP"
-# echo "  Public endpoint: http://$EXTERNAL_IP/public"
-# echo "  Image: ${REGISTRY_ENDPOINT}/${REGISTRY_NAME}/${TENANT_NAME}/tenant-app:latest"
-# echo ""
-# echo "🧪 Test commands:"
-# echo "  curl http://$EXTERNAL_IP/public"
-# echo "  kubectl logs -n $TENANT_NAME deployment/${TENANT_NAME}-app"
+echo ""
+echo "📋 Connection Information:"
+echo "  External IP: $EXTERNAL_IP"
+echo "  Public endpoint: http://$EXTERNAL_IP/public"
+echo ""
+echo "🧪 Test commands:"
+echo "  curl http://$EXTERNAL_IP/public"

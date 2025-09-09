@@ -1,0 +1,81 @@
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: "{{TENANT_NAME}}-default-deny"
+  namespace: {{TENANT_NAME}}
+spec:
+  podSelector: {}
+  policyTypes:
+  - Ingress
+  - Egress
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: "{{TENANT_NAME}}-allow-dns"
+  namespace: {{TENANT_NAME}}
+spec:
+  podSelector: {}
+  policyTypes:
+  - Egress
+  egress:
+  - to: []
+    ports:
+    - protocol: UDP
+      port: 53
+    - protocol: TCP
+      port: 53
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: "{{TENANT_NAME}}-allow-intra-namespace"
+  namespace: {{TENANT_NAME}}
+spec:
+  podSelector: {}
+  policyTypes:
+  - Ingress
+  - Egress
+  ingress:
+  - from:
+    - namespaceSelector:
+        matchLabels:
+          name: {{TENANT_NAME}}
+  egress:
+  - to:
+    - namespaceSelector:
+        matchLabels:
+          name: {{TENANT_NAME}}
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: "{{TENANT_NAME}}-allow-public-ingress"
+  namespace: {{TENANT_NAME}}
+spec:
+  podSelector:
+    matchLabels:
+      app: "{{TENANT_NAME}}-app"
+  policyTypes:
+  - Ingress
+  ingress:
+  - ports:
+    - protocol: TCP
+      port: 8080
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: "{{TENANT_NAME}}-allow-spaces-egress"
+  namespace: {{TENANT_NAME}}
+spec:
+  podSelector:
+    matchLabels:
+      cnpg.io/cluster: pg-{{TENANT_NAME}}
+  policyTypes:
+  - Egress
+  egress:
+  - to: []
+    ports:
+    - protocol: TCP
+      port: 443
