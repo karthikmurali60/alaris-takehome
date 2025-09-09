@@ -22,6 +22,8 @@ export DO_SPACES_ACCESS_KEY=$(echo -n "$DO_SPACES_ACCESS_KEY" | base64)
 export DO_SPACES_SECRET_KEY=$(echo -n "$DO_SPACES_SECRET_KEY" | base64)
 export DB_USERNAME=$(echo -n "pg-${TENANT_NAME}-user" | base64)
 export DB_PASSWORD=$(echo -n "$DB_PASSWORD" | base64)
+export DO_SPACES_BUCKET="$DO_SPACES_BUCKET"
+export DO_SPACES_REGION="$DO_SPACES_REGION"
 
 # Function to process template
 process_template() {
@@ -65,8 +67,8 @@ process_template "namespace.yaml"
 echo "🔐 Creating secrets..."
 process_template "secrets.yaml"
 
-# echo "🗄️ Creating PostgreSQL cluster..."
-# process_template "manifests/database.yaml"
+echo "🗄️ Creating PostgreSQL cluster..."
+process_template "database.yaml"
 
 # echo "🚀 Deploying application..."
 # process_template "manifests/application.yaml"

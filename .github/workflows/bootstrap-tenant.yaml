@@ -45,6 +45,8 @@ jobs:
         DO_SPACES_ACCESS_KEY: ${{ secrets.SPACES_ACCESS_KEY_ID }}
         DO_SPACES_SECRET_KEY: ${{ secrets.SPACES_SECRET_ACCESS_KEY }}
         DB_PASSWORD: ${{ env.DB_PASSWORD }}
+        DO_SPACES_BUCKET: ${{ vars.DO_SPACES_BUCKET }}
+        DO_SPACES_ENDPOINT: ${{ vars.DO_SPACES_ENDPOINT }}
       run: |
         chmod +x scripts/bootstrap-tenant.sh
         ./scripts/bootstrap-tenant.sh ${{ inputs.tenant_name }}

@@ -1,0 +1,41 @@
+apiVersion: postgresql.cnpg.io/v1
+kind: Cluster
+metadata:
+  name: pg-{{TENANT_NAME}}
+  namespace: {{TENANT_NAME}}
+spec:
+  instances: 1
+  
+  postgresql:
+    parameters:
+      max_connections: "100"
+      shared_buffers: "128MB"
+      effective_cache_size: "512MB"
+  
+  bootstrap:
+    initdb:
+      database: app
+      owner: postgres
+      secret:
+        name: pg-{{TENANT_NAME}}-credentials
+  
+  storage:
+    size: 10Gi
+    storageClass: do-block-storage
+  
+  backup:
+    retentionPolicy: "7d"
+    barmanObjectStore:
+      destinationPath: "s3://{{DO_SPACES_BUCKET}}/backups/{{TENANT_NAME}}"
+      endpointURL: "{{DO_SPACES_ENDPOINT}}"
+      s3Credentials:
+        accessKeyId:
+          name: spaces-credentials
+          key: DO_SPACES_ACCESS_KEY
+        secretAccessKey:
+          name: spaces-credentials
+          key: DO_SPACES_SECRET_KEY
+      wal:
+        retention: "7d"
+      data:
+        retention: "7d"
