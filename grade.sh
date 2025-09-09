@@ -455,7 +455,7 @@ EOF
     # 5. Create restored cluster object store
     print_status "DEBUG" "Creating new object store for restored cluster..."
     kubectl apply -f - <<EOF
-apiVersion: postgresql.cnpg.io/v1
+apiVersion: barmancloud.cnpg.io/v1
 kind: ObjectStore
 metadata:
   name: ${RESTORED_STORE_NAME}
@@ -653,10 +653,6 @@ EOF
   # 8. Cleanup restored cluster
   print_status "DEBUG" "Cleaning up PITR cluster..."
   kubectl delete postgresql ${CLUSTER}-pitr -n ${NAMESPACE} --wait=true || true
-
-  # 9. Recreate original cluster for further tests
-  print_status "DEBUG" "Recreating original cluster ${CLUSTER}..."
-  kubectl apply -f ./manifests/database.yaml
 }
 
 # Function to print final summary
