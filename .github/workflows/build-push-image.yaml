@@ -20,9 +20,6 @@ jobs:
         with:
           token: ${{ secrets.DIGITALOCEAN_ACCESS_TOKEN }}
 
-      - name: Authenticate doctl
-        run: doctl auth init -t $DO_API_TOKEN
-
       - name: Run build-push.sh
         run: |
           chmod +x scripts/build-push.sh
