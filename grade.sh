@@ -392,6 +392,83 @@ EOF
     fi
 }
 
+# Test i: Full DR drill (create table, backup, delete cluster, restore, verify data)
+test_dr_drill() {
+    print_status "TEST" "Running full DR drill for tenant-a..."
+
+    local NAMESPACE=tenant-a
+    local CLUSTER=pg-tenant-a
+    local APP_POD_DEPL=tenant-a-app
+    local DR_TABLE=dr_test
+    local TIMESTAMP=$(date +%s)
+    local BACKUP_NAME="dr-backup-${TIMESTAMP}"
+    local RESTORED_CLUSTER="${CLUSTER}-restored"
+
+    # 1. Create sample table and insert row
+    print_status "DEBUG" "Creating table and inserting test row..."
+    kubectl exec -n ${NAMESPACE} deployment/${APP_POD_DEPL} -- \
+      psql -h ${CLUSTER}-rw -U postgres -d app -c "
+CREATE TABLE IF NOT EXISTS ${DR_TABLE} (
+  id SERIAL PRIMARY KEY, created_at TIMESTAMP DEFAULT NOW()
+);
+INSERT INTO ${DR_TABLE} DEFAULT VALUES;
+" || dr_ready=false
+
+    # 2. Trigger manual backup
+    print_status "DEBUG" "Triggering manual backup: ${BACKUP_NAME}"
+    kubectl apply -f - <<EOF
+apiVersion: postgresql.cnpg.io/v1
+kind: Backup
+metadata:
+  name: ${BACKUP_NAME}
+  namespace: ${NAMESPACE}
+spec:
+  cluster:
+    name: ${CLUSTER}
+EOF
+
+    # 3. Wait for backup completion
+    print_status "DEBUG" "Waiting for backup to complete..."
+    until kubectl get backups.postgresql.cnpg.io/${BACKUP_NAME} -n ${NAMESPACE} -o jsonpath='{.status.phase}' | grep -q completed; do
+        sleep 5
+    done
+
+    # 4. Delete original cluster
+    print_status "DEBUG" "Deleting original cluster ${CLUSTER}..."
+    kubectl delete cluster ${CLUSTER} -n ${NAMESPACE} --ignore-not-found
+
+    # 5. Restore from backup
+    print_status "DEBUG" "Restoring to new cluster ${RESTORED_CLUSTER} from ${BACKUP_NAME}..."
+    kubectl apply -f - <<EOF
+apiVersion: postgresql.cnpg.io/v1
+kind: Restore
+metadata:
+  name: dr-restore-${TIMESTAMP}
+  namespace: ${NAMESPACE}
+spec:
+  cluster:
+    name: ${RESTORED_CLUSTER}
+  backupName: ${BACKUP_NAME}
+EOF
+
+    # 6. Wait for restored cluster readiness
+    print_status "DEBUG" "Waiting for restored cluster ${RESTORED_CLUSTER}..."
+    kubectl wait --for=condition=Ready cluster/${RESTORED_CLUSTER} -n ${NAMESPACE} --timeout=600s
+
+    # 7. Verify test row exists
+    print_status "DEBUG" "Verifying DR data in restored cluster..."
+    local result
+    result=$(kubectl exec -n ${NAMESPACE} deployment/${APP_POD_DEPL} -- \
+      psql -h ${RESTORED_CLUSTER}-rw -U postgres -d app -t -c "SELECT count(*) FROM ${DR_TABLE};" 2>/dev/null | tr -d ' ')
+    if [ "$result" -ge 1 ]; then
+        print_status "PASS" "DR drill successful: ${DR_TABLE} row restored"
+        record_result "PASS"
+    else
+        print_status "FAIL" "DR drill failed: no rows in ${DR_TABLE}"
+        record_result "FAIL"
+    fi
+}
+
 # Function to print final summary
 print_summary() {
     echo ""
@@ -414,6 +491,7 @@ print_summary() {
         echo "  ✅ Ops access configured"
         echo "  ✅ Backups present in DigitalOcean Spaces"
         echo "  ✅ Disaster recovery ready"
+        echo "  ✅ Full DR drill successful"
         echo ""
         exit 0
     else
