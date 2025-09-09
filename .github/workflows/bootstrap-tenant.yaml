@@ -1,5 +1,4 @@
-# .github/workflows/deploy-tenant.yml
-name: Deploy Tenant
+name: Bootstrap and Deploy Tenant
 
 on:
   workflow_dispatch:
@@ -28,12 +27,24 @@ jobs:
 
     - name: Save kubeconfig
       run: doctl kubernetes cluster kubeconfig save ${{ vars.K8S_CLUSTER_NAME }}
+    
+    - name: Set DB_PASSWORD for tenant
+      id: set-db-password
+      run: |
+        if [ "${{ inputs.tenant_name }}" = "tenant-a" ]; then
+          echo "DB_PASSWORD=${{ secrets.POSTGRES_TENANT_A_PASSWORD }}" >> $GITHUB_ENV
+        elif [ "${{ inputs.tenant_name }}" = "tenant-b" ]; then
+          echo "DB_PASSWORD=${{ secrets.POSTGRES_TENANT_B_PASSWORD }}" >> $GITHUB_ENV
+        else
+          echo "DB_PASSWORD=" >> $GITHUB_ENV
+        fi
 
     - name: Bootstrap tenant
       env:
         TENANT_NAME: ${{ inputs.tenant_name }}
         DO_SPACES_ACCESS_KEY: ${{ secrets.SPACES_ACCESS_KEY_ID }}
         DO_SPACES_SECRET_KEY: ${{ secrets.SPACES_SECRET_ACCESS_KEY }}
+        DB_PASSWORD: ${{ env.DB_PASSWORD }}
       run: |
         chmod +x scripts/bootstrap-tenant.sh
         ./scripts/bootstrap-tenant.sh ${{ inputs.tenant_name }}
