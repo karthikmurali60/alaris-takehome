@@ -79,7 +79,7 @@ process_template "services.yaml"
 echo "🔒 Applying network policies..."
 process_template "network-policies.yaml"
 
-Wait for resources
+# Wait for resources
 echo "⏳ Waiting for resources to be ready..."
 kubectl wait --for=condition=Ready cluster/pg-$TENANT_NAME -n $TENANT_NAME --timeout=300s
 kubectl wait --for=condition=Available deployment/${TENANT_NAME}-app -n $TENANT_NAME --timeout=300s

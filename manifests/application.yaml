@@ -13,6 +13,8 @@ spec:
       labels:
         app: "{{TENANT_NAME}}-app"
     spec:
+      imagePullSecrets:
+      - name: alaris-takehome-task-registry
       containers:
       - name: app
         image: "registry.digitalocean.com/alaris-takehome-task-registry/{{TENANT_NAME}}/tenant-app:latest"
