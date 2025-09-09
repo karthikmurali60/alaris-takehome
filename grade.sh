@@ -229,8 +229,8 @@ test_internal_reachable() {
     print_status "DEBUG" "Creating temporary pod for internal connectivity test..."
     # Create a temporary pod to test internal connectivity
     local test_result=false
-    if safe_execute "Internal endpoint cluster test" 'kubectl run temp-test-pod -n tenant-a --image=curlimages/curl:latest --rm -i --restart=Never --timeout=30s --command -- curl -s -f --connect-timeout 10 --max-time 30 "http://tenant-a-internal.tenant-a.svc.cluster.local:9090/internal"' && \
-       kubectl run temp-test-pod -n tenant-a --image=curlimages/curl:latest --rm -i --restart=Never --timeout=30s --command -- curl -s -f --connect-timeout 10 --max-time 30 "http://tenant-a-internal.tenant-a.svc.cluster.local:9090/internal" 2>/dev/null | grep -q "tenant-a\|internal\|success" 2>/dev/null; then
+    if safe_execute "Internal endpoint cluster test" 'kubectl run temp-test-pod -n tenant-a --image=curlimages/curl:latest --labels="app=tenant-a-app" --rm -i --restart=Never --timeout=30s --command -- curl -s -f --connect-timeout 10 --max-time 30 "http://tenant-a-internal.tenant-a.svc.cluster.local:9090/internal"' && \
+       kubectl run temp-test-pod -n tenant-a --image=curlimages/curl:latest --labels="app=tenant-a-app" --rm -i --restart=Never --timeout=30s --command -- curl -s -f --connect-timeout 10 --max-time 30 "http://tenant-a-internal.tenant-a.svc.cluster.local:9090/internal" 2>/dev/null | grep -q "tenant-a\|internal\|success" 2>/dev/null; then
         test_result=true
     fi
     
@@ -259,7 +259,7 @@ test_cross_tenant_isolation() {
     
     print_status "DEBUG" "Testing cross-tenant network isolation..."
     # Try to connect from tenant-a to tenant-b database (should fail due to network policies)
-    if safe_execute "Cross-tenant isolation test" 'kubectl run temp-isolation-test -n tenant-a --image=busybox:latest --rm -i --restart=Never --timeout=15s --command -- timeout 5 nc -zv pg-tenant-b-rw.tenant-b.svc.cluster.local 5432'; then
+    if safe_execute "Cross-tenant isolation test" 'kubectl run temp-isolation-test -n tenant-a --image=busybox:latest --labels="app=tenant-a-app" --rm -i --restart=Never --timeout=15s --command -- timeout 5 nc -zv pg-tenant-b-rw.tenant-b.svc.cluster.local 5432'; then
         print_status "FAIL" "Cross-tenant database access is allowed (security violation)"
         record_result "FAIL"
     else

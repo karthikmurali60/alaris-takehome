@@ -41,6 +41,8 @@ spec:
       max_connections: "100"
       shared_buffers: "128MB"
       effective_cache_size: "512MB"
+  backup:
+    barmanObjectStore: pg-{{TENANT_NAME}}-store
   plugins:
   - name: barman-cloud.cloudnative-pg.io
     isWALArchiver: true
