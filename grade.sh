@@ -143,11 +143,9 @@ EOF
 test_smoke_db() {
     print_status "TEST" "Testing database connectivity for tenant-a..."
     
-    # Get the actual app credentials from the correct secret name
-    local app_user app_password
-    app_user=$(kubectl get secret pg-tenant-a-app-secret -n tenant-a -o jsonpath='{.data.username}' | base64 -d 2>/dev/null || echo "app")
-    app_password=$(kubectl get secret pg-tenant-a-app-secret -n tenant-a -o jsonpath='{.data.password}' | base64 -d 2>/dev/null)
-    
+    local app_user=$(kubectl get secret pg-tenant-a-app-secret -n tenant-a -o jsonpath='{.data.username}' | base64 -d 2>/dev/null || echo "app")
+    local app_password=$(kubectl get secret pg-tenant-a-app-secret -n tenant-a -o jsonpath='{.data.password}' | base64 -d 2>/dev/null)
+
     if [ -z "$app_password" ]; then
         print_status "FAIL" "Could not retrieve database password from secret pg-tenant-a-app-secret"
         record_result "FAIL"
@@ -367,6 +365,9 @@ metadata:
 spec:
   cluster:
     name: pg-tenant-a
+  method: plugin
+  pluginConfiguration:
+    name: barman-cloud.cloudnative-pg.io
 EOF
 ); then
         print_status "DEBUG" "Manual backup creation succeeded"
@@ -404,10 +405,18 @@ test_dr_drill() {
     local BACKUP_NAME="dr-backup-${TIMESTAMP}"
     local RESTORED_CLUSTER="${CLUSTER}-restored"
 
+    local app_user=$(kubectl get secret pg-tenant-a-app-secret -n tenant-a -o jsonpath='{.data.username}' | base64 -d 2>/dev/null || echo "app")
+    local app_password=$(kubectl get secret pg-tenant-a-app-secret -n tenant-a -o jsonpath='{.data.password}' | base64 -d 2>/dev/null)
+    if [ -z "$app_password" ]; then
+        print_status "FAIL" "Could not retrieve database password from secret pg-tenant-a-app-secret"
+        record_result "FAIL"
+        return
+    fi
+
     # 1. Create sample table and insert row
     print_status "DEBUG" "Creating table and inserting test row..."
     kubectl exec -n ${NAMESPACE} deployment/${APP_POD_DEPL} -- \
-      psql -h ${CLUSTER}-rw -U postgres -d app -c "
+      env PGPASSWORD="$app_password" psql -h ${CLUSTER}-rw -U postgres -d app -c "
 CREATE TABLE IF NOT EXISTS ${DR_TABLE} (
   id SERIAL PRIMARY KEY, created_at TIMESTAMP DEFAULT NOW()
 );
@@ -425,6 +434,9 @@ metadata:
 spec:
   cluster:
     name: ${CLUSTER}
+  method: plugin
+  pluginConfiguration:
+    name: barman-cloud.cloudnative-pg.io
 EOF
 
     # 3. Wait for backup completion
@@ -459,7 +471,7 @@ EOF
     print_status "DEBUG" "Verifying DR data in restored cluster..."
     local result
     result=$(kubectl exec -n ${NAMESPACE} deployment/${APP_POD_DEPL} -- \
-      psql -h ${RESTORED_CLUSTER}-rw -U postgres -d app -t -c "SELECT count(*) FROM ${DR_TABLE};" 2>/dev/null | tr -d ' ')
+      env PGPASSWORD="$app_password" psql -h ${RESTORED_CLUSTER}-rw -U postgres -d app -t -c "SELECT count(*) FROM ${DR_TABLE};" 2>/dev/null | tr -d ' ')
     if [ "$result" -ge 1 ]; then
         print_status "PASS" "DR drill successful: ${DR_TABLE} row restored"
         record_result "PASS"
