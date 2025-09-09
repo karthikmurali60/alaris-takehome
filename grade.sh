@@ -128,7 +128,18 @@ EOF
 test_smoke_db() {
     print_status "TEST" "Testing database connectivity for tenant-a..."
     
-    if kubectl exec -n tenant-a deployment/tenant-a-app -- psql -h pg-tenant-a-rw -U postgres -d app -c "SELECT 1;" &>/dev/null; then
+    # Get the actual app credentials from the correct secret name
+    local app_user app_password
+    app_user=$(kubectl get secret pg-tenant-a-app-secret -n tenant-a -o jsonpath='{.data.username}' | base64 -d 2>/dev/null || echo "app")
+    app_password=$(kubectl get secret pg-tenant-a-app-secret -n tenant-a -o jsonpath='{.data.password}' | base64 -d 2>/dev/null)
+    
+    if [ -z "$app_password" ]; then
+        print_status "FAIL" "Could not retrieve database password from secret pg-tenant-a-app-secret"
+        record_result "FAIL"
+        return
+    fi
+    
+    if kubectl exec -n tenant-a deployment/tenant-a-app -- env PGPASSWORD="$app_password" psql -h pg-tenant-a-rw -U "$app_user" -d app -c "SELECT 1;" &>/dev/null; then
         print_status "PASS" "Database connection to tenant-a successful"
         record_result "PASS"
     else
@@ -206,14 +217,31 @@ test_internal_reachable() {
 test_cross_tenant_isolation() {
     print_status "TEST" "Testing cross-tenant database isolation (tenant-a -> tenant-b)..."
     
-    # Try to connect from tenant-a to tenant-b database (should fail)
-    if kubectl run temp-isolation-test -n tenant-a --image=postgres:15 --rm -i --restart=Never -- \
-        psql -h pg-tenant-b-rw.tenant-b.svc.cluster.local -U postgres -d app -c "SELECT 1;" &>/dev/null; then
-        print_status "FAIL" "Cross-tenant database access is allowed (security violation)"
-        record_result "FAIL"
+    # Get tenant-b credentials (assuming similar secret naming pattern)
+    local tenant_b_password
+    tenant_b_password=$(kubectl get secret pg-tenant-b-app-secret -n tenant-b -o jsonpath='{.data.password}' | base64 -d 2>/dev/null)
+    
+    if [ -z "$tenant_b_password" ]; then
+        print_status "WARN" "Could not retrieve tenant-b password, testing with generic connection"
+        # Try to connect from tenant-a to tenant-b database (should fail due to network policies)
+        if kubectl run temp-isolation-test -n tenant-a --image=postgres:15 --rm -i --restart=Never -- \
+            psql -h pg-tenant-b-rw.tenant-b.svc.cluster.local -U app -d app -c "SELECT 1;" &>/dev/null; then
+            print_status "FAIL" "Cross-tenant database access is allowed (security violation)"
+            record_result "FAIL"
+        else
+            print_status "PASS" "Cross-tenant database access is properly blocked"
+            record_result "PASS"
+        fi
     else
-        print_status "PASS" "Cross-tenant database access is properly blocked"
-        record_result "PASS"
+        # Try to connect from tenant-a to tenant-b database with correct credentials (should still fail due to network policies)
+        if kubectl run temp-isolation-test -n tenant-a --image=postgres:15 --rm -i --restart=Never -- \
+            env PGPASSWORD="$tenant_b_password" psql -h pg-tenant-b-rw.tenant-b.svc.cluster.local -U app -d app -c "SELECT 1;" &>/dev/null; then
+            print_status "FAIL" "Cross-tenant database access is allowed (security violation)"
+            record_result "FAIL"
+        else
+            print_status "PASS" "Cross-tenant database access is properly blocked"
+            record_result "PASS"
+        fi
     fi
 }
 
@@ -221,14 +249,25 @@ test_cross_tenant_isolation() {
 test_ops_readonly() {
     print_status "TEST" "Testing ops namespace read-only access to tenant databases..."
     
-    # Test read access (should work)
+    # Get tenant-a app credentials
+    local app_user app_password
+    app_user=$(kubectl get secret pg-tenant-a-app-secret -n tenant-a -o jsonpath='{.data.username}' | base64 -d 2>/dev/null || echo "app")
+    app_password=$(kubectl get secret pg-tenant-a-app-secret -n tenant-a -o jsonpath='{.data.password}' | base64 -d 2>/dev/null)
+    
+    if [ -z "$app_password" ]; then
+        print_status "FAIL" "Could not retrieve database password for ops test"
+        record_result "FAIL"
+        return
+    fi
+    
+    # Test read access (should work if network policies allow it)
     if kubectl run ops-read-test -n ops --image=postgres:15 --rm -i --restart=Never -- \
-        psql -h pg-tenant-a-ro.tenant-a.svc.cluster.local -U postgres -d app -c "SELECT 1;" &>/dev/null; then
+        env PGPASSWORD="$app_password" psql -h pg-tenant-a-ro.tenant-a.svc.cluster.local -U "$app_user" -d app -c "SELECT 1;" &>/dev/null; then
         print_status "INFO" "Ops read access to tenant-a successful"
         
-        # Test write access (should fail)
+        # Test write access (should fail - either due to read-only replica or permissions)
         if kubectl run ops-write-test -n ops --image=postgres:15 --rm -i --restart=Never -- \
-            psql -h pg-tenant-a-rw.tenant-a.svc.cluster.local -U postgres -d app -c "CREATE TABLE test_table (id INT);" &>/dev/null; then
+            env PGPASSWORD="$app_password" psql -h pg-tenant-a-rw.tenant-a.svc.cluster.local -U "$app_user" -d app -c "CREATE TABLE test_table_ops (id INT);" &>/dev/null; then
             print_status "FAIL" "Ops has write access to tenant databases (should be read-only)"
             record_result "FAIL"
         else
@@ -265,9 +304,20 @@ test_backups_present() {
 test_disaster_recovery() {
     print_status "TEST" "Testing disaster recovery restore process..."
     
+    # Get tenant-a app credentials
+    local app_user app_password
+    app_user=$(kubectl get secret pg-tenant-a-app-secret -n tenant-a -o jsonpath='{.data.username}' | base64 -d 2>/dev/null || echo "app")
+    app_password=$(kubectl get secret pg-tenant-a-app-secret -n tenant-a -o jsonpath='{.data.password}' | base64 -d 2>/dev/null)
+    
+    if [ -z "$app_password" ]; then
+        print_status "FAIL" "Could not retrieve database password for disaster recovery test"
+        record_result "FAIL"
+        return
+    fi
+    
     # Create test data
     print_status "INFO" "Creating test data in tenant-a database..."
-    kubectl exec -n tenant-a deployment/tenant-a-app -- psql -h pg-tenant-a-rw -U postgres -d app -c "
+    kubectl exec -n tenant-a deployment/tenant-a-app -- env PGPASSWORD="$app_password" psql -h pg-tenant-a-rw -U "$app_user" -d app -c "
         CREATE TABLE IF NOT EXISTS dr_test (
             id SERIAL PRIMARY KEY,
             test_data VARCHAR(50),
@@ -298,7 +348,7 @@ test_disaster_recovery() {
     kubectl wait --for=condition=Ready cluster/pg-tenant-a -n tenant-a --timeout=180s &>/dev/null
     
     # Verify data is still present
-    if kubectl exec -n tenant-a deployment/tenant-a-app -- psql -h pg-tenant-a-rw -U postgres -d app -c "SELECT COUNT(*) FROM dr_test WHERE test_data LIKE 'pre-disaster-data-%';" 2>/dev/null | grep -q "1" 2>/dev/null; then
+    if kubectl exec -n tenant-a deployment/tenant-a-app -- env PGPASSWORD="$app_password" psql -h pg-tenant-a-rw -U "$app_user" -d app -c "SELECT COUNT(*) FROM dr_test WHERE test_data LIKE 'pre-disaster-data-%';" 2>/dev/null | grep -q "1" 2>/dev/null; then
         print_status "PASS" "Disaster recovery successful - test data recovered"
         record_result "PASS"
     else
