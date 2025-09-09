@@ -42,7 +42,8 @@ spec:
       shared_buffers: "128MB"
       effective_cache_size: "512MB"
   backup:
-    barmanObjectStore: {}
+    barmanObjectStore:
+      destinationPath: "s3://{{DO_SPACES_BUCKET}}/backups/{{TENANT_NAME}}"
   plugins:
   - name: barman-cloud.cloudnative-pg.io
     isWALArchiver: true
