@@ -8,7 +8,6 @@ spec:
   configuration:
     destinationPath: "s3://{{DO_SPACES_BUCKET}}/backups/{{TENANT_NAME}}"
     endpointURL: "{{DO_SPACES_ENDPOINT}}"
-    serverName: pg-{{TENANT_NAME}}
     s3Credentials:
       accessKeyId:
         name: spaces-credentials
