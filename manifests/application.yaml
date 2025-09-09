@@ -18,6 +18,7 @@ spec:
       containers:
       - name: app
         image: "registry.digitalocean.com/alaris-takehome-task-registry/{{TENANT_NAME}}/tenant-app:latest"
+        imagePullPolicy: Always
         ports:
         - containerPort: 8080
         - containerPort: 9090
