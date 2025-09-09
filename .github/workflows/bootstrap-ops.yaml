@@ -1,0 +1,26 @@
+name: Bootstrap and Deploy Ops
+
+on:
+  workflow_dispatch:
+
+jobs:
+  deploy-ops:
+    name: Deploy Ops to DOKS
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Install doctl
+      uses: digitalocean/action-doctl@v2
+      with:
+        token: ${{ secrets.DIGITALOCEAN_ACCESS_TOKEN }}
+
+    - name: Save kubeconfig
+      run: doctl kubernetes cluster kubeconfig save ${{ vars.K8S_CLUSTER_NAME }}
+
+    - name: Bootstrap Ops
+      run: |
+        chmod +x scripts/bootstrap-ops.sh
+        ./scripts/bootstrap-ops.sh
