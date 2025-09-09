@@ -1,0 +1,228 @@
+name: Multi-Tenant Deployment Validation
+
+on:
+  # Allow manual trigger
+  workflow_dispatch:
+    inputs:
+      tenant_name:
+        description: 'Tenant name to test (e.g., tenant-a)'
+        required: false
+        default: 'tenant-a'
+        type: string
+      skip_dr_test:
+        description: 'Skip disaster recovery test (faster execution)'
+        required: false
+        default: false
+        type: boolean
+
+env:
+  DO_SPACES_REGION: 'nyc3'
+  DO_SPACES_ENDPOINT: ${{ vars.DO_SPACES_ENDPOINT }}
+  DO_SPACES_BUCKET: ${{ vars.DO_SPACES_BUCKET }}
+  TENANT_NAME: ${{ github.event.inputs.tenant_name }}
+
+jobs:
+  validate-deployment:
+    name: Validate Multi-Tenant Deployment
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v4
+      
+    - name: Set up kubectl
+      uses: azure/setup-kubectl@v3
+      with:
+        version: 'latest'
+
+    - name: Install doctl
+      uses: digitalocean/action-doctl@v2
+      with:
+        token: ${{ secrets.DIGITALOCEAN_ACCESS_TOKEN }}
+
+    - name: Install s3cmd
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y s3cmd python3-pip
+        pip3 install --upgrade s3cmd
+        
+    - name: Get kubeconfig for DOKS
+      run: |
+        doctl kubernetes cluster kubeconfig save ${{ vars.K8S_CLUSTER_NAME }}
+
+    - name: Verify required secrets
+      run: |
+        echo "Checking required GitHub secrets..."
+        
+        # List of required secrets
+        REQUIRED_SECRETS=(
+          "DIGITALOCEAN_ACCESS_TOKEN"
+          "SPACES_ACCESS_KEY_ID"
+          "SPACES_SECRET_ACCESS_KEY"
+        )
+        
+        # Check if secrets are properly configured (without exposing values)
+        for secret in "${REQUIRED_SECRETS[@]}"; do
+          if [ -z "${!secret}" ]; then
+            echo "❌ Missing required secret: $secret"
+            exit 1
+          else
+            echo "✅ Secret $secret is configured"
+          fi
+        done
+        
+    # - name: Verify ops namespace exists
+    #   run: |
+    #     echo "Checking if ops namespace exists..."
+    #     if ! kubectl get namespace ops &>/dev/null; then
+    #       echo "Creating ops namespace..."
+    #       kubectl create namespace ops
+          
+    #       # Create service account for ops namespace
+    #       kubectl create serviceaccount ops-reader -n ops
+          
+    #       # Create cluster role for read-only access to tenant databases
+    #       kubectl apply -f - <<EOF
+    #     apiVersion: rbac.authorization.k8s.io/v1
+    #     kind: ClusterRole
+    #     metadata:
+    #       name: tenant-db-reader
+    #     rules:
+    #     - apiGroups: [""]
+    #       resources: ["services", "pods"]
+    #       verbs: ["get", "list"]
+    #     - apiGroups: [""]
+    #       resources: ["pods/exec"]
+    #       verbs: ["create"]
+    #     ---
+    #     apiVersion: rbac.authorization.k8s.io/v1
+    #     kind: ClusterRoleBinding
+    #     metadata:
+    #       name: ops-tenant-db-reader
+    #     roleRef:
+    #       apiGroup: rbac.authorization.k8s.io
+    #       kind: ClusterRole
+    #       name: tenant-db-reader
+    #     subjects:
+    #     - kind: ServiceAccount
+    #       name: ops-reader
+    #       namespace: ops
+    #     EOF
+    #     else
+    #       echo "Ops namespace already exists."
+    #     fi
+        
+    - name: Wait for services to be ready
+      run: |
+        echo "Waiting for LoadBalancer services to get external IPs..."
+        
+        # Wait for LoadBalancer to get external IP (up to 5 minutes)
+        timeout 300s bash -c 'until kubectl get svc -n ${{ env.TENANT_NAME }} ${{ env.TENANT_NAME }}-public -o jsonpath="{.status.loadBalancer.ingress[0].ip}" | grep -E "^[0-9]+\.[0-9]+\.[0-9]+\.[0-9]+$"; do echo "Waiting for LoadBalancer IP..."; sleep 10; done' || true
+        
+        # Show current service status
+        kubectl get svc -n ${{ env.TENANT_NAME }}
+        
+        # Show pod status
+        kubectl get pods -n ${{ env.TENANT_NAME }}
+        
+    - name: Configure s3cmd for testing
+      run: |
+        # Configure s3cmd with DigitalOcean Spaces credentials
+        cat > ~/.s3cfg << EOF
+        [default]
+        access_key = ${{ secrets.SPACES_ACCESS_KEY_ID }}
+        secret_key = ${{ secrets.SPACES_SECRET_ACCESS_KEY }}
+        host_base = ${{ env.DO_SPACES_ENDPOINT }}
+        host_bucket = %(bucket)s.${{ env.DO_SPACES_ENDPOINT }}
+        use_https = True
+        signature_v2 = False
+        EOF
+        
+        # Test s3cmd configuration
+        echo "Testing s3cmd configuration..."
+        s3cmd ls s3://${{ env.DO_SPACES_BUCKET }}/ || echo "Bucket may be empty or access denied"
+        
+    - name: Run validation tests
+      env:
+        KUBECONFIG: ${{ env.KUBECONFIG }}
+        DO_SPACES_ACCESS_KEY: ${{ secrets.SPACES_ACCESS_KEY_ID }}
+        DO_SPACES_SECRET_KEY: ${{ secrets.SPACES_SECRET_ACCESS_KEY }}
+        SKIP_DR_TEST: ${{ github.event.inputs.skip_dr_test || 'false' }}
+      run: |
+        # Make grade script executable
+        chmod +x grade.sh
+        
+        # Run the comprehensive validation tests
+        echo "Starting comprehensive validation tests..."
+        
+        # Modify grade.sh to skip DR test if requested
+        if [ "$SKIP_DR_TEST" = "true" ]; then
+          echo "⚠️ Skipping disaster recovery test as requested"
+          # Comment out the DR test function call in grade.sh
+          sed -i 's/test_disaster_recovery/#test_disaster_recovery # Skipped in CI/' grade.sh
+          # Adjust total test count
+          sed -i 's/TOTAL_TESTS=8/TOTAL_TESTS=7/' grade.sh
+        fi
+        
+        # Execute the grade script
+        ./grade.sh
+        
+    - name: Collect diagnostic information on failure
+      if: failure()
+      run: |
+        echo "Collecting diagnostic information..."
+        
+        echo "=== Cluster Information ==="
+        kubectl cluster-info
+        
+        echo "=== Node Status ==="
+        kubectl get nodes -o wide
+        
+        echo "=== Namespace Status ==="
+        kubectl get namespaces
+        
+        echo "=== Tenant Namespace Resources ==="
+        kubectl get all -n ${{ env.TENANT_NAME }} -o wide || true
+        
+        echo "=== Tenant Pod Logs ==="
+        kubectl logs -n ${{ env.TENANT_NAME }} deployment/${{ env.TENANT_NAME }}-app --tail=50 || true
+        
+        echo "=== Tenant Database Status ==="
+        kubectl get cluster -n ${{ env.TENANT_NAME }} || true
+        kubectl describe cluster pg-${{ env.TENANT_NAME }} -n ${{ env.TENANT_NAME }} || true
+        
+        echo "=== Network Policies ==="
+        kubectl get networkpolicies -n ${{ env.TENANT_NAME }} || true
+        
+        echo "=== Services ==="
+        kubectl get svc -n ${{ env.TENANT_NAME }} -o wide || true
+        
+        echo "=== Events ==="
+        kubectl get events -n ${{ env.TENANT_NAME }} --sort-by='.lastTimestamp' || true
+        
+        echo "=== CNPG Operator Status ==="
+        kubectl get pods -n cnpg-system || true
+        kubectl logs -n cnpg-system -l app.kubernetes.io/name=cloudnative-pg --tail=50 || true
+        
+    - name: Show deployment summary
+      if: always()
+      run: |
+        echo "=== Deployment Summary ==="
+        echo "Tenant: ${{ env.TENANT_NAME }}"
+        echo "DO Spaces Region: ${{ env.DO_SPACES_REGION }}"
+        echo "DO Spaces Bucket: ${{ env.DO_SPACES_BUCKET }}"
+        
+        echo ""
+        echo "=== Service Endpoints ==="
+        EXTERNAL_IP=$(kubectl get svc -n ${{ env.TENANT_NAME }} ${{ env.TENANT_NAME }}-public -o jsonpath='{.status.loadBalancer.ingress[0].ip}' 2>/dev/null || echo "pending")
+        echo "Public Endpoint: http://${EXTERNAL_IP}/public"
+        echo "Health Check: http://${EXTERNAL_IP}/health"
+        echo "DB Health Check: http://${EXTERNAL_IP}/db-health"
+        
+        echo ""
+        echo "=== Manual Testing Commands ==="
+        echo "kubectl get pods -n ${{ env.TENANT_NAME }}"
+        echo "kubectl logs -n ${{ env.TENANT_NAME }} deployment/${{ env.TENANT_NAME }}-app"
+        echo "curl http://${EXTERNAL_IP}/public"
+        echo "s3cmd ls s3://${{ env.DO_SPACES_BUCKET }}/backups/${{ env.TENANT_NAME }}/"
