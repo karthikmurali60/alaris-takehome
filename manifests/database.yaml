@@ -6,7 +6,7 @@ metadata:
 spec:
   retentionPolicy: "7d"
   configuration:
-    destinationPath: "s3://{{DO_SPACES_BUCKET}}/backups/{{TENANT_NAME}}/pg-{{TENANT_NAME}}/wals/"
+    destinationPath: "s3://{{DO_SPACES_BUCKET}}/backups/{{TENANT_NAME}}/pg-{{TENANT_NAME}}"
     endpointURL: "https://{{DO_SPACES_ENDPOINT}}"
     s3Credentials:
       accessKeyId:
