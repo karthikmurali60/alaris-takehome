@@ -4,6 +4,7 @@ metadata:
   name: pg-{{TENANT_NAME}}-store
   namespace: {{TENANT_NAME}}
 spec:
+  retentionPolicy: "7d"
   configuration:
     destinationPath: "s3://{{DO_SPACES_BUCKET}}/backups/{{TENANT_NAME}}"
     endpointURL: "{{DO_SPACES_ENDPOINT}}"
@@ -15,10 +16,8 @@ spec:
       secretAccessKey:
         name: spaces-credentials
         key: DO_SPACES_SECRET_KEY
-  wal:
-    retention: "7d"
-  data:
-    retention: "7d"
+    wal:
+      compression: gzip
 ---
 apiVersion: postgresql.cnpg.io/v1
 kind: Cluster
@@ -41,11 +40,19 @@ spec:
       max_connections: "100"
       shared_buffers: "128MB"
       effective_cache_size: "512MB"
-  backup:
-    retentionPolicy: "7d"
-    method: plugin
   plugins:
   - name: barman-cloud.cloudnative-pg.io
     isWALArchiver: true
     parameters:
-      objectStore: pg-{{TENANT_NAME}}-store
+      barmanObjectName: pg-{{TENANT_NAME}}-store
+---
+apiVersion: postgresql.cnpg.io/v1
+kind: ScheduledBackup
+metadata:
+  name: pg-tenant-scheduled-backup
+  namespace: {{TENANT_NAME}}
+spec:
+  schedule: "0 0 */6 * * *"
+  backupOwnerReference: self
+  cluster:
+    name: pg-{{TENANT_NAME}}
