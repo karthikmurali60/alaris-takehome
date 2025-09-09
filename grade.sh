@@ -297,20 +297,20 @@ test_backups_present() {
     
     print_status "DEBUG" "Listing backups in DigitalOcean Spaces..."
     # List backups for tenant-a
-    if safe_execute "Backup listing test" "s3cmd ls \"s3://${DO_SPACES_BUCKET}/backups/tenant-a/\"" && \
-       s3cmd ls "s3://${DO_SPACES_BUCKET}/backups/tenant-a/" 2>/dev/null | grep -E "\.(backup|wal|gz)" 2>/dev/null; then
+    if safe_execute "Backup listing test" "s3cmd ls -r \"s3://${DO_SPACES_BUCKET}/backups/tenant-a/\"" && \
+       s3cmd ls -r "s3://${DO_SPACES_BUCKET}/backups/tenant-a/" 2>/dev/null | grep -E "\.(backup|wal|gz)" 2>/dev/null; then
         print_status "PASS" "Backups found in DigitalOcean Spaces for tenant-a"
         record_result "PASS"
         
         # Show recent backups
         print_status "INFO" "Recent backups in tenant-a:"
-        s3cmd ls "s3://${DO_SPACES_BUCKET}/backups/tenant-a/" 2>/dev/null | tail -3 | while read line; do
+        s3cmd ls -r "s3://${DO_SPACES_BUCKET}/backups/tenant-a/" 2>/dev/null | tail -3 | while read line; do
             echo "    $line"
         done
     else
         print_status "FAIL" "No backups found in DigitalOcean Spaces for tenant-a"
         print_status "DEBUG" "Bucket contents:"
-        s3cmd ls "s3://${DO_SPACES_BUCKET}/" 2>/dev/null | head -5 || echo "Could not list bucket contents"
+        s3cmd ls -r "s3://${DO_SPACES_BUCKET}/" 2>/dev/null | head -5 || echo "Could not list bucket contents"
         record_result "FAIL"
     fi
 }
@@ -331,7 +331,7 @@ test_disaster_recovery() {
     fi
     
     # Check if backups exist
-    if ! safe_execute "Backup existence check" "s3cmd ls \"s3://${DO_SPACES_BUCKET}/backups/tenant-a/\""; then
+    if ! safe_execute "Backup existence check" "s3cmd ls -r \"s3://${DO_SPACES_BUCKET}/backups/tenant-a/\""; then
         print_status "DEBUG" "No backups found for DR"
         dr_ready=false
     fi
