@@ -60,6 +60,6 @@ resource "digitalocean_project_resources" "alaris_project_resources" {
     [for volume in digitalocean_volume.tenant_volumes : volume.urn],
     [digitalocean_spaces_bucket.backups.urn],
     [digitalocean_kubernetes_cluster.alaris_cluster.urn],
-    [digitalocean_container_registry.main.urn]
+    [digitalocean_container_registry.main.id]
   )
 }
