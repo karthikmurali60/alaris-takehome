@@ -25,3 +25,14 @@ terraform.rc
 # Ignore any artifact files
 tfplan
 *.out
+
+node_modules/
+.DS_Store
+.env
+.env.*
+.env.local
+.env.*.local
+npm-debug.log*
+build/
+dist/
+out/
