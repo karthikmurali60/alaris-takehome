@@ -32,7 +32,9 @@ metadata:
   name: "{{TENANT_NAME}}-allow-intra-namespace"
   namespace: {{TENANT_NAME}}
 spec:
-  podSelector: {}
+  podSelector:
+    matchLabels:
+      cnpg.io/cluster: pg-{{TENANT_NAME}}
   policyTypes:
   - Ingress
   - Egress
@@ -40,12 +42,38 @@ spec:
   - from:
     - namespaceSelector:
         matchLabels:
-          name: {{TENANT_NAME}}
-  egress:
-  - to:
-    - namespaceSelector:
+          name: cnpg-system
+  # Allow communication from application pods
+  - from:
+    - podSelector:
         matchLabels:
-          name: {{TENANT_NAME}}
+          app: "{{TENANT_NAME}}-app"
+    ports:
+    - protocol: TCP
+      port: 5432
+  # Allow PostgreSQL cluster internal communication
+  - from:
+    - podSelector:
+        matchLabels:
+          cnpg.io/cluster: pg-{{TENANT_NAME}}
+  egress:
+  # Allow PostgreSQL cluster internal communication
+  - to:
+    - podSelector:
+        matchLabels:
+          cnpg.io/cluster: pg-{{TENANT_NAME}}
+  # Allow communication to Kubernetes API server (for operator)
+  - to: []
+    ports:
+    - protocol: TCP
+      port: 443
+    - protocol: TCP
+      port: 6443
+  # Allow communication to DO Spaces for backups
+  - to: []
+    ports:
+    - protocol: TCP
+      port: 443
 ---
 apiVersion: networking.k8s.io/v1
 kind: NetworkPolicy
@@ -58,10 +86,34 @@ spec:
       app: "{{TENANT_NAME}}-app"
   policyTypes:
   - Ingress
+  - Egress
   ingress:
+  # Allow public access to application
   - ports:
     - protocol: TCP
       port: 8080
+  # Allow internal access (from same namespace only)
+  - from:
+    - podSelector: {}
+    ports:
+    - protocol: TCP
+      port: 9090
+  egress:
+  # Allow DNS resolution
+  - to: []
+    ports:
+    - protocol: UDP
+      port: 53
+    - protocol: TCP
+      port: 53
+  # Allow connection to PostgreSQL
+  - to:
+    - podSelector:
+        matchLabels:
+          cnpg.io/cluster: pg-{{TENANT_NAME}}
+    ports:
+    - protocol: TCP
+      port: 5432
 ---
 apiVersion: networking.k8s.io/v1
 kind: NetworkPolicy
@@ -69,13 +121,12 @@ metadata:
   name: "{{TENANT_NAME}}-allow-spaces-egress"
   namespace: {{TENANT_NAME}}
 spec:
-  podSelector:
-    matchLabels:
-      cnpg.io/cluster: pg-{{TENANT_NAME}}
+  podSelector: {}
   policyTypes:
-  - Egress
+  - Ingress
   egress:
-  - to: []
-    ports:
-    - protocol: TCP
-      port: 443
+  # Allow all pods to communicate with the operator in cnpg-system namespace
+  - to:
+    - namespaceSelector:
+        matchLabels:
+          name: cnpg-system
