@@ -12,7 +12,7 @@ tenants = {
 }
 project_name            = "alaris-takehome-task"
 cluster_name            = "alaris-takehome-cluster"
-cluster_version         = "latest"
+cluster_version         = "1.33.1-do.3"
 node_size               = "s-1vcpu-2gb"
 node_pool_name          = "default-pool"
 node_count              = 2
