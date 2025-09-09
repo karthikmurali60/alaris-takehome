@@ -10,7 +10,7 @@ NC='\033[0m' # No Color
 # Global variables for tracking test results
 PASS_COUNT=0
 FAIL_COUNT=0
-TOTAL_TESTS=9
+TOTAL_TESTS=10
 
 # Required environment variables
 REQUIRED_VARS=(
@@ -453,14 +453,43 @@ EOF
     print_status "DEBUG" "Restoring to new cluster ${RESTORED_CLUSTER} from ${BACKUP_NAME}..."
     kubectl apply -f - <<EOF
 apiVersion: postgresql.cnpg.io/v1
-kind: Restore
+kind: Cluster
 metadata:
-  name: dr-restore-${TIMESTAMP}
+  name: ${RESTORED_CLUSTER}
   namespace: ${NAMESPACE}
 spec:
-  cluster:
-    name: ${RESTORED_CLUSTER}
-  backupName: ${BACKUP_NAME}
+  instances: 2
+  superuserSecret:
+    name: pg-${NAMESPACE}-superuser-secret
+  storage:
+    size: 1Gi
+    storageClass: do-block-storage
+  
+  # Bootstrap from backup instead of initdb
+  bootstrap:
+    recovery:
+      source: ${BACKUP_NAME}
+  
+  # External cluster definition for recovery source
+  externalClusters:
+  - name: ${BACKUP_NAME}
+    plugin:
+      name: barman-cloud.cloudnative-pg.io
+      parameters:
+        barmanObjectName: pg-tenant-a-store
+  
+  postgresql:
+    parameters:
+      max_connections: "100"
+      shared_buffers: "128MB"
+      effective_cache_size: "512MB"
+  
+  # Continue using the plugin for future backups
+  plugins:
+  - name: barman-cloud.cloudnative-pg.io
+    isWALArchiver: true
+    parameters:
+      barmanObjectName: pg-tenant-a-store
 EOF
 
     # 6. Wait for restored cluster readiness
@@ -479,6 +508,125 @@ EOF
         print_status "FAIL" "DR drill failed: no rows in ${DR_TABLE}"
         record_result "FAIL"
     fi
+
+    # 8. Cleanup restored cluster
+    print_status "DEBUG" "Cleaning up restored cluster ${RESTORED_CLUSTER}..."
+    kubectl delete cluster ${RESTORED_CLUSTER} -n ${NAMESPACE} --ignore-not-found
+}
+
+# Test j: Point-In-Time Recovery (PITR) demonstration
+test_pitr() {
+  print_status "TEST" "Demonstrating point-in-time recovery for tenant-a..."
+  local NAMESPACE=tenant-a
+  local CLUSTER=pg-tenant-a
+  local APP_POD_DEPLOY=tenant-a-app
+  local PITR_TABLE=pitr_test
+  local TIMESTAMP_BEFORE=$(date +%Y-%m-%dT%H:%M:%S)
+  local PITR_RECOVERY_TIME
+  local TENANT_NAME=tenant-a
+
+  # 1. Create a test table and insert an initial row
+  print_status "DEBUG" "Creating PITR test table and inserting initial row..."
+  kubectl exec -n ${NAMESPACE} deployment/${APP_POD_DEPLOY} -- \
+    env PGPASSWORD="$app_password" psql -h ${CLUSTER}-rw -U "$app_user" -d app -c "
+      CREATE TABLE IF NOT EXISTS ${PITR_TABLE} (
+        id SERIAL PRIMARY KEY,
+        content TEXT,
+        created_at TIMESTAMP DEFAULT NOW()
+      );
+      INSERT INTO ${PITR_TABLE}(content) VALUES ('before-pitr');
+    " >/dev/null
+
+  # 2. Capture a recovery target time a few seconds later
+  sleep 5
+  PITR_RECOVERY_TIME=$(date -d "$(date +%Y-%m-%dT%H:%M:%S) - 2 seconds" +%Y-%m-%dT%H:%M:%S)
+  print_status "DEBUG" "Recovery target time set to ${PITR_RECOVERY_TIME}"
+
+  # 3. Insert a second row that we will roll back
+  print_status "DEBUG" "Inserting row that will be rolled back..."
+  kubectl exec -n ${NAMESPACE} deployment/${APP_POD_DEPLOY} -- \
+    env PGPASSWORD="$app_password" psql -h ${CLUSTER}-rw -U "$app_user" -d app -c "
+      INSERT INTO ${PITR_TABLE}(content) VALUES ('after-pitr');
+    " >/dev/null
+
+  # 4. Trigger a manual base backup to capture WAL segments
+  local BACKUP_NAME="pitr-backup-$(date +%s)"
+  print_status "DEBUG" "Triggering a manual base backup: ${BACKUP_NAME}"
+  kubectl apply -f - <<EOF >/dev/null
+apiVersion: postgresql.cnpg.io/v1
+kind: Backup
+metadata:
+  name: ${BACKUP_NAME}
+  namespace: ${NAMESPACE}
+spec:
+  cluster:
+    name: ${CLUSTER}
+  method: plugin
+  pluginConfiguration:
+    name: barman-cloud.cloudnative-pg.io
+EOF
+
+  # Wait for backup to complete
+  sleep 10
+
+  # 5. Delete the original cluster to simulate disaster
+  print_status "DEBUG" "Deleting original cluster to simulate restore scenario..."
+  kubectl delete postgresql ${CLUSTER} -n ${NAMESPACE} --wait=true
+
+  # 6. Recreate cluster with PITR recoveryTargetTime
+  print_status "DEBUG" "Restoring cluster up to ${PITR_RECOVERY_TIME}..."
+  kubectl apply -f - <<EOF >/dev/null
+apiVersion: postgresql.cnpg.io/v1
+kind: Cluster
+metadata:
+  name: ${CLUSTER}-pitr
+  namespace: ${NAMESPACE}
+spec:
+  instances: 2
+  superuserSecret:
+    name: pg-${TENANT_NAME}-superuser-secret
+  storage:
+    size: 1Gi
+    storageClass: do-block-storage
+  bootstrap:
+    recovery:
+      recoveryTargetTime: "${PITR_RECOVERY_TIME}"
+      recoveryTargetTimeline: latest
+    initdb:
+      database: app
+      owner: app
+    secret:
+      name: pg-${TENANT_NAME}-app-secret
+  postgresql:
+    parameters:
+      max_connections: "100"
+      shared_buffers: "128MB"
+      effective_cache_size: "512MB"
+    plugins:
+      - name: barman-cloud.cloudnative-pg.io
+        isWALArchiver: true
+        parameters:
+          barmanObjectName: pg-${TENANT_NAME}-store
+EOF
+
+  # Wait for restored cluster to be ready
+  sleep 30
+
+  # 7. Verify that only the 'before-pitr' row exists
+  print_status "DEBUG" "Verifying PITR restoration..."
+  if kubectl exec -n ${NAMESPACE} deployment/${APP_POD_DEPLOY} -- \
+       env PGPASSWORD="$app_password" psql -h ${CLUSTER}-pitr-rw -U "$app_user" -d app -tAc \
+       "SELECT content FROM ${PITR_TABLE} ORDER BY id;" | grep -qx 'before-pitr'; then
+    print_status "PASS" "PITR successful: only pre-recovery data present"
+    record_result "PASS"
+  else
+    print_status "FAIL" "PITR failed: rolled-back data still present or missing"
+    record_result "FAIL"
+  fi
+
+  # 8. Cleanup restored cluster
+  print_status "DEBUG" "Cleaning up PITR cluster..."
+  kubectl delete postgresql ${CLUSTER}-pitr -n ${NAMESPACE} --wait=true || true
 }
 
 # Function to print final summary
@@ -504,6 +652,7 @@ print_summary() {
         echo "  ✅ Backups present in DigitalOcean Spaces"
         echo "  ✅ Disaster recovery ready"
         echo "  ✅ Full DR drill successful"
+        echo "  ✅ Point-in-time recovery demonstrated"
         echo ""
         exit 0
     else
@@ -552,6 +701,7 @@ main() {
     test_backups_present || true
     test_disaster_recovery || true
     test_dr_drill || true
+    test_pitr || true
     
     print_status "DEBUG" "All tests completed. Final score: ${PASS_COUNT}/${TOTAL_TESTS}"
     

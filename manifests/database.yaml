@@ -24,7 +24,7 @@ metadata:
   name: pg-{{TENANT_NAME}}
   namespace: {{TENANT_NAME}}
 spec:
-  instances: 1
+  instances: 2
   superuserSecret:
     name: pg-{{TENANT_NAME}}-superuser-secret
   storage:
