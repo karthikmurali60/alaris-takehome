@@ -1,6 +1,6 @@
 FROM oven/bun:1-alpine
 
-RUN apk add --no-cache curl, bash, postgresql-client
+RUN apk add --no-cache curl postgresql-client bash
 
 WORKDIR /app
 
