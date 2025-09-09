@@ -404,6 +404,9 @@ test_dr_drill() {
     local TIMESTAMP=$(date +%s)
     local BACKUP_NAME="dr-backup-${TIMESTAMP}"
     local RESTORED_CLUSTER="${CLUSTER}-restored"
+    local RESTORED_STORE_NAME="pg-tenant-a-restored-store"
+    local DO_SPACES_BUCKET=${DO_SPACES_BUCKET}
+    local DO_SPACES_ENDPOINT=${DO_SPACES_ENDPOINT}
 
     local app_user=$(kubectl get secret pg-tenant-a-app-secret -n tenant-a -o jsonpath='{.data.username}' | base64 -d 2>/dev/null || echo "app")
     local app_password=$(kubectl get secret pg-tenant-a-app-secret -n tenant-a -o jsonpath='{.data.password}' | base64 -d 2>/dev/null)
@@ -449,6 +452,30 @@ EOF
     print_status "DEBUG" "Deleting original cluster ${CLUSTER}..."
     kubectl delete cluster ${CLUSTER} -n ${NAMESPACE} --ignore-not-found
 
+    # 5. Create restored cluster object store
+    print_status "DEBUG" "Creating new object store for restored cluster..."
+    kubectl apply -f - <<EOF
+apiVersion: postgresql.cnpg.io/v1
+kind: BarmanObjectStore
+metadata:
+  name: ${RESTORED_STORE_NAME}
+  namespace: ${NAMESPACE}
+spec:
+  retentionPolicy: "7d"
+  configuration:
+    destinationPath: "s3://${DO_SPACES_BUCKET}/backups/tenant-a/pg-tenant-a-restored"
+    endpointURL: "https://${DO_SPACES_ENDPOINT}"
+    s3Credentials:
+      accessKeyId:
+        name: spaces-credentials
+        key: ACCESS_KEY_ID
+      secretAccessKey:
+        name: spaces-credentials
+        key: SECRET_ACCESS_KEY
+    wal:
+        compression: gzip
+EOF
+
     # 5. Restore from backup
     print_status "DEBUG" "Restoring to new cluster ${RESTORED_CLUSTER} from ${BACKUP_NAME}..."
     kubectl apply -f - <<EOF
@@ -484,12 +511,11 @@ spec:
       shared_buffers: "128MB"
       effective_cache_size: "512MB"
   
-  # Continue using the plugin for future backups
   plugins:
   - name: barman-cloud.cloudnative-pg.io
     isWALArchiver: true
     parameters:
-      barmanObjectName: pg-tenant-a-store
+      barmanObjectName: ${RESTORED_STORE_NAME}
 EOF
 
     # 6. Wait for restored cluster readiness
@@ -627,6 +653,10 @@ EOF
   # 8. Cleanup restored cluster
   print_status "DEBUG" "Cleaning up PITR cluster..."
   kubectl delete postgresql ${CLUSTER}-pitr -n ${NAMESPACE} --wait=true || true
+
+  # 9. Recreate original cluster for further tests
+  print_status "DEBUG" "Recreating original cluster ${CLUSTER}..."
+  kubectl apply -f ./manifests/database.yaml
 }
 
 # Function to print final summary
