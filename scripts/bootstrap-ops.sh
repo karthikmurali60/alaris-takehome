@@ -20,10 +20,10 @@ echo "📝 Processing ops templates..."
 echo "🏠 Creating namespace..."
 process_template "namespace.yaml"
 
-echo "Creating psql-client..."
-process_template "psql-client.yaml"
-
 echo "Creating RBAC roles and bindings..."
 process_template "rbac.yaml"
+
+echo "Creating psql-client..."
+process_template "psql-client.yaml"
 
 echo "✅ Ops namespace bootstrapped successfully!"
