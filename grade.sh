@@ -456,7 +456,7 @@ EOF
     print_status "DEBUG" "Creating new object store for restored cluster..."
     kubectl apply -f - <<EOF
 apiVersion: postgresql.cnpg.io/v1
-kind: BarmanObjectStore
+kind: ObjectStore
 metadata:
   name: ${RESTORED_STORE_NAME}
   namespace: ${NAMESPACE}
