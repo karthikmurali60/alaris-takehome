@@ -1,0 +1,29 @@
+name: Build and Push Docker Image
+
+on:
+  workflow_dispatch:
+    inputs:
+      tenant_name:
+        description: 'Tenant name'
+        required: true
+
+jobs:
+  build-push:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v3
+
+      - name: Install doctl
+        uses: digitalocean/action-doctl@v2
+        with:
+          token: ${{ secrets.DIGITALOCEAN_ACCESS_TOKEN }}
+
+      - name: Authenticate doctl
+        run: doctl auth init -t $DO_API_TOKEN
+
+      - name: Run build-push.sh
+        run: |
+          chmod +x scripts/build-push.sh
+          scripts/build-push.sh "${{ github.event.inputs.tenant_name }}"
