@@ -6,5 +6,5 @@ releases:
   - name: cnpg-operator
     namespace: cnpg-system
     chart: cnpg/cloudnative-pg
-    version: 0.20.2
+    version: 0.26.0
     values: []
