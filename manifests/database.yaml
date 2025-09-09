@@ -5,9 +5,10 @@ metadata:
   namespace: {{TENANT_NAME}}
 spec:
   retentionPolicy: "7d"
+  usePathStyleEndpoint: true
   configuration:
     destinationPath: "s3://{{DO_SPACES_BUCKET}}/backups/{{TENANT_NAME}}"
-    endpointURL: "{{DO_SPACES_ENDPOINT}}"
+    endpointURL: "https://{{DO_SPACES_ENDPOINT}}"
     s3Credentials:
       accessKeyId:
         name: spaces-credentials
@@ -53,7 +54,7 @@ metadata:
   name: pg-tenant-scheduled-backup
   namespace: {{TENANT_NAME}}
 spec:
-  schedule: "0 0 */12 * * *"
+  schedule: "0 0 */12 * *"
   backupOwnerReference: self
   cluster:
     name: pg-{{TENANT_NAME}}
