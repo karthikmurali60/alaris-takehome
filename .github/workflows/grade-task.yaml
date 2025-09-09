@@ -11,11 +11,6 @@ on:
         options:
           - tenant-a
           - tenant-b
-      skip_dr_test:
-        description: 'Skip disaster recovery test (faster execution)'
-        required: false
-        default: false
-        type: boolean
 
 env:
   DO_SPACES_REGION: 'nyc3'
@@ -73,8 +68,8 @@ jobs:
         [default]
         access_key = ${{ secrets.SPACES_ACCESS_KEY_ID }}
         secret_key = ${{ secrets.SPACES_SECRET_ACCESS_KEY }}
-        host_base = ${{ env.DO_SPACES_ENDPOINT }}
-        host_bucket = %(bucket)s.${{ env.DO_SPACES_ENDPOINT }}
+        host_base = ${{ env.DO_SPACES_REGION }}.digitaloceanspaces.com
+        host_bucket = %(bucket)s.${{ env.DO_SPACES_REGION }}.digitaloceanspaces.com
         use_https = True
         signature_v2 = False
         EOF
@@ -88,22 +83,12 @@ jobs:
         KUBECONFIG: ${{ env.KUBECONFIG }}
         DO_SPACES_ACCESS_KEY: ${{ secrets.SPACES_ACCESS_KEY_ID }}
         DO_SPACES_SECRET_KEY: ${{ secrets.SPACES_SECRET_ACCESS_KEY }}
-        SKIP_DR_TEST: ${{ github.event.inputs.skip_dr_test || 'false' }}
       run: |
         # Make grade script executable
         chmod +x grade.sh
         
         # Run the comprehensive validation tests
         echo "Starting comprehensive validation tests..."
-        
-        # Modify grade.sh to skip DR test if requested
-        if [ "$SKIP_DR_TEST" = "true" ]; then
-          echo "⚠️ Skipping disaster recovery test as requested"
-          # Comment out the DR test function call in grade.sh
-          sed -i 's/test_disaster_recovery/#test_disaster_recovery # Skipped in CI/' grade.sh
-          # Adjust total test count
-          sed -i 's/TOTAL_TESTS=8/TOTAL_TESTS=7/' grade.sh
-        fi
         
         # Execute the grade script
         ./grade.sh
