@@ -10,7 +10,7 @@ NC='\033[0m' # No Color
 # Global variables for tracking test results
 PASS_COUNT=0
 FAIL_COUNT=0
-TOTAL_TESTS=8
+TOTAL_TESTS=9
 
 # Required environment variables
 REQUIRED_VARS=(
@@ -539,6 +539,7 @@ main() {
     test_ops_readonly || true
     test_backups_present || true
     test_disaster_recovery || true
+    test_dr_drill || true
     
     print_status "DEBUG" "All tests completed. Final score: ${PASS_COUNT}/${TOTAL_TESTS}"
     
