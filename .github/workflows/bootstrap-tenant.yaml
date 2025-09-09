@@ -1,0 +1,39 @@
+# .github/workflows/deploy-tenant.yml
+name: Deploy Tenant
+
+on:
+  workflow_dispatch:
+    inputs:
+      tenant_name:
+        description: 'Tenant name'
+        required: true
+        type: choice
+        options:
+          - tenant-a
+          - tenant-b
+
+jobs:
+  deploy-tenant:
+    name: Deploy Tenant to DOKS
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Install doctl
+      uses: digitalocean/action-doctl@v2
+      with:
+        token: ${{ secrets.DIGITALOCEAN_ACCESS_TOKEN }}
+
+    - name: Save kubeconfig
+      run: doctl kubernetes cluster kubeconfig save ${{ vars.K8S_CLUSTER_NAME }}
+
+    - name: Bootstrap tenant
+      env:
+        TENANT_NAME: ${{ inputs.tenant_name }}
+        DO_SPACES_ACCESS_KEY: ${{ secrets.SPACES_ACCESS_KEY_ID }}
+        DO_SPACES_SECRET_KEY: ${{ secrets.SPACES_SECRET_ACCESS_KEY }}
+      run: |
+        chmod +x scripts/bootstrap-tenant.sh
+        ./scripts/bootstrap-tenant.sh ${{ inputs.tenant_name }}
