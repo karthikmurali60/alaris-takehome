@@ -1,5 +1,7 @@
 FROM oven/bun:1-alpine
 
+RUN apk add --no-cache curl, bash, postgresql-client
+
 WORKDIR /app
 
 COPY package.json ./
