@@ -463,7 +463,7 @@ metadata:
 spec:
   retentionPolicy: "7d"
   configuration:
-    destinationPath: "s3://${DO_SPACES_BUCKET}/backups/tenant-a/pg-tenant-a-restored"
+    destinationPath: "s3://${DO_SPACES_BUCKET}/backups/tenant-a/pg-tenant-a"
     endpointURL: "https://${DO_SPACES_ENDPOINT}"
     s3Credentials:
       accessKeyId:
@@ -476,7 +476,7 @@ spec:
         compression: gzip
 EOF
 
-    # 5. Restore from backup
+    # 6. Restore from backup
     print_status "DEBUG" "Restoring to new cluster ${RESTORED_CLUSTER} from ${BACKUP_NAME}..."
     kubectl apply -f - <<EOF
 apiVersion: postgresql.cnpg.io/v1
@@ -518,11 +518,11 @@ spec:
       barmanObjectName: ${RESTORED_STORE_NAME}
 EOF
 
-    # 6. Wait for restored cluster readiness
+    # 7. Wait for restored cluster readiness
     print_status "DEBUG" "Waiting for restored cluster ${RESTORED_CLUSTER}..."
     kubectl wait --for=condition=Ready cluster/${RESTORED_CLUSTER} -n ${NAMESPACE} --timeout=600s
 
-    # 7. Verify test row exists
+    # 8. Verify test row exists
     print_status "DEBUG" "Verifying DR data in restored cluster..."
     local result
     result=$(kubectl exec -n ${NAMESPACE} deployment/${APP_POD_DEPL} -- \
@@ -535,7 +535,7 @@ EOF
         record_result "FAIL"
     fi
 
-    # 8. Cleanup restored cluster
+    # 9. Cleanup restored cluster
     print_status "DEBUG" "Cleaning up restored cluster ${RESTORED_CLUSTER}..."
     kubectl delete cluster ${RESTORED_CLUSTER} -n ${NAMESPACE} --ignore-not-found
 }
@@ -550,6 +550,11 @@ test_pitr() {
   local TIMESTAMP_BEFORE=$(date +%Y-%m-%dT%H:%M:%S)
   local PITR_RECOVERY_TIME
   local TENANT_NAME=tenant-a
+  local BACKUP_NAME="dr-backup-${TIMESTAMP}"
+  local RESTORED_CLUSTER="${CLUSTER}-restored"
+  local RESTORED_STORE_NAME="pg-tenant-a-restored-store"
+  local DO_SPACES_BUCKET=${DO_SPACES_BUCKET}
+  local DO_SPACES_ENDPOINT=${DO_SPACES_ENDPOINT}
 
   # 1. Create a test table and insert an initial row
   print_status "DEBUG" "Creating PITR test table and inserting initial row..."
@@ -598,6 +603,30 @@ EOF
   # 5. Delete the original cluster to simulate disaster
   print_status "DEBUG" "Deleting original cluster to simulate restore scenario..."
   kubectl delete postgresql ${CLUSTER} -n ${NAMESPACE} --wait=true
+
+  # 5. Create restored cluster object store
+  print_status "DEBUG" "Creating new object store for restored cluster..."
+  kubectl apply -f - <<EOF
+apiVersion: barmancloud.cnpg.io/v1
+kind: ObjectStore
+metadata:
+  name: ${RESTORED_STORE_NAME}
+  namespace: ${NAMESPACE}
+spec:
+  retentionPolicy: "7d"
+  configuration:
+    destinationPath: "s3://${DO_SPACES_BUCKET}/backups/tenant-a/pg-tenant-a"
+    endpointURL: "https://${DO_SPACES_ENDPOINT}"
+    s3Credentials:
+      accessKeyId:
+        name: spaces-credentials
+        key: ACCESS_KEY_ID
+      secretAccessKey:
+        name: spaces-credentials
+        key: SECRET_ACCESS_KEY
+    wal:
+        compression: gzip
+EOF
 
   # 6. Recreate cluster with PITR recoveryTargetTime
   print_status "DEBUG" "Restoring cluster up to ${PITR_RECOVERY_TIME}..."
