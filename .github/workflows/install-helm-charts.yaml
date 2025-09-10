@@ -1,4 +1,4 @@
-name: Install CloudNativePG Operator Clusterwide
+name: Install Helm Charts
 
 on:
   workflow_dispatch:
