@@ -15,10 +15,6 @@ terraform.rc
 # Exclude plan output
 *.tfplan
 
-# Exclude sensitive .tfvars files (if you create them for secrets, etc)
-*.tfvars
-!example.tfvars      # (Un-ignore sample/template files for docs)
-
 # Ignore logs
 *.log
 
